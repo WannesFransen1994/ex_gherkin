@@ -57,7 +57,7 @@ defmodule ExGherkin.TokenMatcher do
     do: Enum.find(keywords, &(string |> String.trim() |> String.starts_with?(&1)))
 
   defp base_title_regex(key), do: ~r/(?<indent>\s*)#{key}\s*(?<matched_text>.*)/
-  defp base_key_regex(key), do: ~r/(?<indent>\s*)#{key}(?<matched_text>.*)/
+  defp base_key_regex(key), do: ~r/(?<indent>\s*)#{Regex.escape(key)}(?<matched_text>.*)/
   defp base_docstring_regex(sep), do: ~r/(?<indent>\s*)#{sep}(?<matched_text>.*)/
 
   defp match_empty(""), do: true
@@ -114,11 +114,6 @@ defmodule ExGherkin.TokenMatcher do
 
     %{"indent" => indent, "matched_text" => matched_text} =
       keyword |> base_key_regex() |> Regex.named_captures(c)
-
-    # if c == "    * a step" do
-    #   require IEx
-    #   IEx.pry()
-    # end
 
     opts = [
       matched_type: StepLine,
@@ -179,8 +174,9 @@ defmodule ExGherkin.TokenMatcher do
   def parse(Language, %Line{content: c} = l, context) do
     # raise "load different lexicon"
     %{"lang" => lang} = Regex.named_captures(@language_regex, c)
+    i = String.length(c) - String.length(String.trim_leading(c)) + 1
     {:ok, new_lexicon} = ExGherkin.Gherkin.Lexicon.load_lang(lang)
-    token = struct!(Token, line: l, matched_type: Language, matched_text: lang)
+    token = struct!(Token, line: l, matched_type: Language, matched_text: lang, indent: i)
     %{context | reverse_queue: [token | context.reverse_queue], lexicon: new_lexicon}
   end
 

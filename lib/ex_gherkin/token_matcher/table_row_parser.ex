@@ -92,11 +92,11 @@ defmodule ExGherkin.TokenMatcher.TableRowParser do
 
   # Next table cell sep is detected. Make an item and put it in the accumulator.
   defp parse_line(%{escape: false, item_offset: offset} = meta, <<"|", rem::binary>>, acc) do
-    raw = meta.txt |> Enum.reverse() |> List.to_string()
+    raw = meta.txt |> replace_invalid_chars |> Enum.reverse() |> List.to_string()
     ltrimmed_content = String.trim_leading(raw, " ")
     col_loc = meta.col - String.length(ltrimmed_content) - offset
 
-    item = %{column: col_loc, content: String.trim(raw, " ")}
+    item = %{column: col_loc, content: raw |> String.trim(" ")}
 
     meta
     |> meta_reset_txt()
@@ -126,4 +126,11 @@ defmodule ExGherkin.TokenMatcher.TableRowParser do
   defp meta_reset_offset(m), do: %{m | item_offset: 0}
   defp meta_offset_plus1(m), do: %{m | item_offset: m.item_offset + 1}
   defp meta_record_indent_4_token(m), do: %{m | token_col: m.col}
+
+  defp replace_invalid_chars(list_of_chars) when is_list(list_of_chars) do
+    Enum.map(list_of_chars, fn
+      i when i in [9, 160] -> 32
+      i -> i
+    end)
+  end
 end
