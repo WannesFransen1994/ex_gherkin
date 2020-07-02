@@ -34,14 +34,16 @@
 defmodule ExGherkin.ParserContext do
   @@enforce_keys [:lines, :lexicon]
   defstruct [
-    :smthing_with_ast_builder,
+    :smthing_with_ast_builder?,
     :lines,
     language: "en",
     lexicon: nil,
     reverse_queue: [],
     errors: [],
     state: 0,
-    tokens: []
+    tokens: [],
+    docstring_sep: nil,
+    docstring_indent: nil
   ]
 end
 
@@ -87,8 +89,10 @@ defmodule ExGherkin.@Model.ParserClassName do
           } else {
             <text>TokenMatcher.match?(@transition.TokenType , line, context) -> </text>
           }
-          context_w_added_token = TokenMatcher.parse(@transition.TokenType , line, context)
-          %{context_w_added_token | state: @transition.TargetState}
+          <text>
+            context_w_added_token = TokenMatcher.parse(@transition.TokenType , line, context)
+            %{context_w_added_token | state: @transition.TargetState}
+          </text>
         }
       @* # Code below is basically called when no other token matches.  *@
       true -> @HandleParserError(state.Transitions.Select(t => "#" + t.TokenType.ToString()).Distinct(), state)

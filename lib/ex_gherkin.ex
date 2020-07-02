@@ -23,7 +23,9 @@ defmodule ExGherkin do
     # [File.cwd!(), "testdata", "good", "datatables.feature"]                     # OK
     # [File.cwd!(), "testdata", "good", "datatables_with_new_lines.feature"]      # OK
     # [File.cwd!(), "testdata", "good", "escaped_pipes.feature"]                  # OK
-    [File.cwd!(), "testdata", "good", "tags.feature"]
+    # [File.cwd!(), "testdata", "good", "docstrings.feature"]                     # OK
+    # [File.cwd!(), "testdata", "good", "i18n_fr.feature"]                        # OK
+    [File.cwd!(), "testdata", "good", "incomplete_background_1.feature"]
     |> Path.join()
     |> Path.wildcard()
   end

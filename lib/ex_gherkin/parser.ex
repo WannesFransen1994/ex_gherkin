@@ -6,14 +6,16 @@
 defmodule ExGherkin.ParserContext do
   @enforce_keys [:lines, :lexicon]
   defstruct [
-    :smthing_with_ast_builder,
+    :smthing_with_ast_builder?,
     :lines,
     language: "en",
     lexicon: nil,
     reverse_queue: [],
     errors: [],
     state: 0,
-    tokens: []
+    tokens: [],
+    docstring_sep: nil,
+    docstring_indent: nil
   ]
 end
 
@@ -583,10 +585,8 @@ defmodule ExGherkin.Parser do
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        # context_w_added_token = TokenMatcher.parse(TagLine , line, context)
-        new_context = TokenMatcher.parse(TagLine, line, context)
-        # %{context: new_context}=lookahead?(0, line, context_w_added_token)
-        %{new_context | state: 17}
+        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
+        %{context_w_added_token | state: 17}
 
       TokenMatcher.match?(TagLine, line, context) ->
         context_w_added_token = TokenMatcher.parse(TagLine, line, context)
@@ -644,10 +644,8 @@ defmodule ExGherkin.Parser do
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        # context_w_added_token = TokenMatcher.parse(TagLine , line, context)
-        new_context = TokenMatcher.parse(TagLine, line, context)
-        # %{context: new_context}=lookahead?(0, line, context_w_added_token)
-        %{new_context | state: 17}
+        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
+        %{context_w_added_token | state: 17}
 
       TokenMatcher.match?(TagLine, line, context) ->
         context_w_added_token = TokenMatcher.parse(TagLine, line, context)
@@ -704,10 +702,8 @@ defmodule ExGherkin.Parser do
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        # context_w_added_token = TokenMatcher.parse(TagLine , line, context)
-        new_context = TokenMatcher.parse(TagLine, line, context)
-        # %{context: new_context}=lookahead?(0, line, context_w_added_token)
-        %{new_context | state: 17}
+        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
+        %{context_w_added_token | state: 17}
 
       TokenMatcher.match?(TagLine, line, context) ->
         context_w_added_token = TokenMatcher.parse(TagLine, line, context)
@@ -768,10 +764,8 @@ defmodule ExGherkin.Parser do
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        # context_w_added_token = TokenMatcher.parse(TagLine , line, context)
-        new_context = TokenMatcher.parse(TagLine, line, context)
-        # %{context: new_context}=lookahead?(0, line, context_w_added_token)
-        %{new_context | state: 17}
+        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
+        %{context_w_added_token | state: 17}
 
       TokenMatcher.match?(TagLine, line, context) ->
         context_w_added_token = TokenMatcher.parse(TagLine, line, context)
@@ -834,10 +828,8 @@ defmodule ExGherkin.Parser do
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        # context_w_added_token = TokenMatcher.parse(TagLine , line, context)
-        new_context = TokenMatcher.parse(TagLine, line, context)
-        # %{context: new_context}=lookahead?(0, line, context_w_added_token)
-        %{new_context | state: 17}
+        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
+        %{context_w_added_token | state: 17}
 
       TokenMatcher.match?(TagLine, line, context) ->
         context_w_added_token = TokenMatcher.parse(TagLine, line, context)
@@ -930,10 +922,8 @@ defmodule ExGherkin.Parser do
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        # context_w_added_token = TokenMatcher.parse(TagLine , line, context)
-        new_context = TokenMatcher.parse(TagLine, line, context)
-        # %{context: new_context}=lookahead?(0, line, context_w_added_token)
-        %{new_context | state: 17}
+        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
+        %{context_w_added_token | state: 17}
 
       TokenMatcher.match?(TagLine, line, context) ->
         context_w_added_token = TokenMatcher.parse(TagLine, line, context)
@@ -991,10 +981,8 @@ defmodule ExGherkin.Parser do
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        # context_w_added_token = TokenMatcher.parse(TagLine , line, context)
-        new_context = TokenMatcher.parse(TagLine, line, context)
-        # %{context: new_context}=lookahead?(0, line, context_w_added_token)
-        %{new_context | state: 17}
+        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
+        %{context_w_added_token | state: 17}
 
       TokenMatcher.match?(TagLine, line, context) ->
         context_w_added_token = TokenMatcher.parse(TagLine, line, context)
@@ -1051,10 +1039,8 @@ defmodule ExGherkin.Parser do
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        # context_w_added_token = TokenMatcher.parse(TagLine , line, context)
-        new_context = TokenMatcher.parse(TagLine, line, context)
-        # %{context: new_context}=lookahead?(0, line, context_w_added_token)
-        %{new_context | state: 17}
+        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
+        %{context_w_added_token | state: 17}
 
       TokenMatcher.match?(TagLine, line, context) ->
         context_w_added_token = TokenMatcher.parse(TagLine, line, context)
@@ -1107,10 +1093,8 @@ defmodule ExGherkin.Parser do
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        # context_w_added_token = TokenMatcher.parse(TagLine , line, context)
-        new_context = TokenMatcher.parse(TagLine, line, context)
-        # %{context: new_context}=lookahead?(0, line, context_w_added_token)
-        %{new_context | state: 17}
+        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
+        %{context_w_added_token | state: 17}
 
       TokenMatcher.match?(TagLine, line, context) ->
         context_w_added_token = TokenMatcher.parse(TagLine, line, context)
@@ -1610,10 +1594,8 @@ defmodule ExGherkin.Parser do
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        # context_w_added_token = TokenMatcher.parse(TagLine , line, context)
-        new_context = TokenMatcher.parse(TagLine, line, context)
-        # %{context: new_context}=lookahead?(0, line, context_w_added_token)
-        %{new_context | state: 36}
+        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
+        %{context_w_added_token | state: 36}
 
       TokenMatcher.match?(TagLine, line, context) ->
         context_w_added_token = TokenMatcher.parse(TagLine, line, context)
@@ -1671,10 +1653,8 @@ defmodule ExGherkin.Parser do
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        # context_w_added_token = TokenMatcher.parse(TagLine , line, context)
-        new_context = TokenMatcher.parse(TagLine, line, context)
-        # %{context: new_context}=lookahead?(0, line, context_w_added_token)
-        %{new_context | state: 36}
+        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
+        %{context_w_added_token | state: 36}
 
       TokenMatcher.match?(TagLine, line, context) ->
         context_w_added_token = TokenMatcher.parse(TagLine, line, context)
@@ -1731,10 +1711,8 @@ defmodule ExGherkin.Parser do
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        # context_w_added_token = TokenMatcher.parse(TagLine , line, context)
-        new_context = TokenMatcher.parse(TagLine, line, context)
-        # %{context: new_context}=lookahead?(0, line, context_w_added_token)
-        %{new_context | state: 36}
+        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
+        %{context_w_added_token | state: 36}
 
       TokenMatcher.match?(TagLine, line, context) ->
         context_w_added_token = TokenMatcher.parse(TagLine, line, context)
@@ -1795,10 +1773,8 @@ defmodule ExGherkin.Parser do
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        # context_w_added_token = TokenMatcher.parse(TagLine , line, context)
-        new_context = TokenMatcher.parse(TagLine, line, context)
-        # %{context: new_context}=lookahead?(0, line, context_w_added_token)
-        %{new_context | state: 36}
+        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
+        %{context_w_added_token | state: 36}
 
       TokenMatcher.match?(TagLine, line, context) ->
         context_w_added_token = TokenMatcher.parse(TagLine, line, context)
@@ -1861,10 +1837,8 @@ defmodule ExGherkin.Parser do
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        # context_w_added_token = TokenMatcher.parse(TagLine , line, context)
-        new_context = TokenMatcher.parse(TagLine, line, context)
-        # %{context: new_context}=lookahead?(0, line, context_w_added_token)
-        %{new_context | state: 36}
+        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
+        %{context_w_added_token | state: 36}
 
       TokenMatcher.match?(TagLine, line, context) ->
         context_w_added_token = TokenMatcher.parse(TagLine, line, context)
@@ -1957,10 +1931,8 @@ defmodule ExGherkin.Parser do
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        # context_w_added_token = TokenMatcher.parse(TagLine , line, context)
-        new_context = TokenMatcher.parse(TagLine, line, context)
-        # %{context: new_context}=lookahead?(0, line, context_w_added_token)
-        %{new_context | state: 36}
+        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
+        %{context_w_added_token | state: 36}
 
       TokenMatcher.match?(TagLine, line, context) ->
         context_w_added_token = TokenMatcher.parse(TagLine, line, context)
@@ -2018,10 +1990,8 @@ defmodule ExGherkin.Parser do
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        # context_w_added_token = TokenMatcher.parse(TagLine , line, context)
-        new_context = TokenMatcher.parse(TagLine, line, context)
-        # %{context: new_context}=lookahead?(0, line, context_w_added_token)
-        %{new_context | state: 36}
+        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
+        %{context_w_added_token | state: 36}
 
       TokenMatcher.match?(TagLine, line, context) ->
         context_w_added_token = TokenMatcher.parse(TagLine, line, context)
@@ -2078,10 +2048,8 @@ defmodule ExGherkin.Parser do
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        # context_w_added_token = TokenMatcher.parse(TagLine , line, context)
-        new_context = TokenMatcher.parse(TagLine, line, context)
-        # %{context: new_context}=lookahead?(0, line, context_w_added_token)
-        %{new_context | state: 36}
+        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
+        %{context_w_added_token | state: 36}
 
       TokenMatcher.match?(TagLine, line, context) ->
         context_w_added_token = TokenMatcher.parse(TagLine, line, context)
@@ -2134,10 +2102,8 @@ defmodule ExGherkin.Parser do
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        # context_w_added_token = TokenMatcher.parse(TagLine , line, context)
-        new_context = TokenMatcher.parse(TagLine, line, context)
-        # %{context: new_context}=lookahead?(0, line, context_w_added_token)
-        %{new_context | state: 36}
+        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
+        %{context_w_added_token | state: 36}
 
       TokenMatcher.match?(TagLine, line, context) ->
         context_w_added_token = TokenMatcher.parse(TagLine, line, context)
@@ -2213,10 +2179,8 @@ defmodule ExGherkin.Parser do
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        # context_w_added_token = TokenMatcher.parse(TagLine , line, context)
-        new_context = TokenMatcher.parse(TagLine, line, context)
-        # %{context: new_context}=lookahead?(0, line, context_w_added_token)
-        %{new_context | state: 36}
+        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
+        %{context_w_added_token | state: 36}
 
       TokenMatcher.match?(TagLine, line, context) ->
         context_w_added_token = TokenMatcher.parse(TagLine, line, context)
@@ -2359,10 +2323,8 @@ defmodule ExGherkin.Parser do
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        # context_w_added_token = TokenMatcher.parse(TagLine , line, context)
-        new_context = TokenMatcher.parse(TagLine, line, context)
-        # %{context: new_context}=lookahead?(0, line, context_w_added_token)
-        %{new_context | state: 17}
+        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
+        %{context_w_added_token | state: 17}
 
       TokenMatcher.match?(TagLine, line, context) ->
         context_w_added_token = TokenMatcher.parse(TagLine, line, context)

@@ -3,53 +3,48 @@ defmodule ExGherkin.TokenMatcher do
     tag: "@",
     comment: "#",
     title_keyword_sep: ":",
-    table_cell: "|",
-    docstring_sep: "\"\"\"",
-    docstring_alt_sep: "```"
+    table_cell: "|"
   }
+  @doc_sep "\"\"\""
+  @doc_sep_alt "```"
 
   @language_regex ~r/^\s*#\s*language\s*:\s*(?<lang>[a-zA-Z\-_]+)\s*$/
 
   require IEx
-  alias ExGherkin.{Token, ParserContext, Line}
+  alias ExGherkin.{Token, Line}
+  alias ExGherkin.ParserContext, as: PC
   alias ExGherkin.Gherkin.Lexicon
 
   # ############# #
   # Match section #
   # ############# #
 
-  def match?(EOF, %Line{content: ""}, %ParserContext{lines: []}), do: true
+  def match?(EOF, %Line{content: ""}, %PC{lines: []}), do: true
   def match?(EOF, %Line{}, _context), do: false
   def match?(Empty, %Line{content: c}, _), do: c |> String.trim() |> match_empty()
   def match?(Comment, %Line{content: c}, _), do: my_starts_with?(c, @constants.comment)
   def match?(TagLine, %Line{content: c}, _), do: my_starts_with?(c, @constants.tag)
   def match?(TableRow, %Line{content: c}, _), do: my_starts_with?(c, @constants.table_cell)
-
-  def match?(DocStringSeparator, string, _context), do: false
-
   def match?(Language, %Line{content: c}, _context), do: Regex.match?(@language_regex, c)
   def match?(Other, %Line{}, _context), do: true
 
-  def match?(type, %Line{content: c}, %ParserContext{lexicon: lex})
+  def match?(DocStringSeparator, %Line{content: c}, %PC{docstring_sep: nil}) do
+    my_starts_with?(c, @doc_sep) || my_starts_with?(c, @doc_sep_alt) || false
+  end
+
+  def match?(DocStringSeparator, %Line{content: c}, %PC{docstring_sep: sep})
+      when sep in [@doc_sep, @doc_sep_alt] do
+    my_starts_with?(c, sep) || false
+  end
+
+  def match?(type, %Line{content: c}, %PC{lexicon: lex})
       when type in [FeatureLine, RuleLine, BackgroundLine, StepLine, ExamplesLine, ScenarioLine] do
     Lexicon.load_keywords(type, lex) |> match_line(type, c) || false
   end
 
-  # def match?(ScenarioLine, %Line{content: c}, %ParserContext{lexicon: lex}) do
-  #   a = match_scenario?(lex, c)
-  #   b = match_scenario_outline?(lex, c)
-  #   a || b || false
-  # end
-
   # ############## #
   # Helper section #
   # ############## #
-
-  # defp match_scenario?(lex, string),
-  #   do: Lexicon.load_keywords(ScenarioLine, lex) |> match_line(ScenarioLine, string)
-
-  # defp match_scenario_outline?(lex, string),
-  #   do: Lexicon.load_keywords(ScenarioOutLine, lex) |> match_line(ScenarioLine, string)
 
   defp match_line(keywords, type, string)
        when type in [FeatureLine, RuleLine, BackgroundLine, ExamplesLine, ScenarioLine] do
@@ -63,6 +58,7 @@ defmodule ExGherkin.TokenMatcher do
 
   defp base_title_regex(key), do: ~r/(?<indent>\s*)#{key}\s*(?<matched_text>.*)/
   defp base_key_regex(key), do: ~r/(?<indent>\s*)#{key}(?<matched_text>.*)/
+  defp base_docstring_regex(sep), do: ~r/(?<indent>\s*)#{sep}(?<matched_text>.*)/
 
   defp match_empty(""), do: true
   defp match_empty(_str), do: false
@@ -70,6 +66,10 @@ defmodule ExGherkin.TokenMatcher do
   defp my_starts_with?(text, prefix) do
     text |> String.trim() |> String.starts_with?(prefix)
   end
+
+  def trim_x(binary, _char, 0), do: binary
+  def trim_x(<<char::binary-size(1), rest::binary>>, char, n), do: trim_x(rest, char, n - 1)
+  def trim_x(binary, _char, _n), do: binary
 
   # ############# #
   # Parse section #
@@ -89,7 +89,7 @@ defmodule ExGherkin.TokenMatcher do
 
   def parse(TableRow, l, context), do: __MODULE__.TableRowParser.parse(TableRow, l, context)
 
-  def parse(type, %Line{content: c} = l, %ParserContext{lexicon: lex} = context)
+  def parse(type, %Line{content: c} = l, %PC{lexicon: lex} = context)
       when type in [FeatureLine, BackgroundLine, RuleLine, ExamplesLine, ScenarioLine] do
     keyword_w_sep = Lexicon.load_keywords(type, lex) |> match_line(type, c)
     keyword = String.trim_trailing(keyword_w_sep, @constants.title_keyword_sep)
@@ -115,11 +115,16 @@ defmodule ExGherkin.TokenMatcher do
     %{"indent" => indent, "matched_text" => matched_text} =
       keyword |> base_key_regex() |> Regex.named_captures(c)
 
+    # if c == "    * a step" do
+    #   require IEx
+    #   IEx.pry()
+    # end
+
     opts = [
       matched_type: StepLine,
       line: l,
       indent: String.length(indent) + 1,
-      matched_text: matched_text,
+      matched_text: String.trim(matched_text),
       matched_keyword: keyword
     ]
 
@@ -127,19 +132,66 @@ defmodule ExGherkin.TokenMatcher do
     %{context | reverse_queue: [token | context.reverse_queue]}
   end
 
-  def parse(DocStringSeparator, %Line{content: c} = l, context) do
-    raise "DocStringSeparator implement me"
+  def parse(DocStringSeparator, %Line{} = l, %PC{docstring_sep: nil} = ctext) do
+    sep =
+      cond do
+        my_starts_with?(l.content, @doc_sep) -> @doc_sep
+        my_starts_with?(l.content, @doc_sep_alt) -> @doc_sep_alt
+        true -> raise "Did you match first? If it matches, this should definitely not raise."
+      end
+
+    %{"indent" => indent, "matched_text" => matched_text} =
+      sep |> base_docstring_regex() |> Regex.named_captures(l.content)
+
+    opts = [
+      matched_type: DocStringSeparator,
+      line: l,
+      indent: String.length(indent) + 1,
+      matched_text: matched_text,
+      matched_keyword: sep
+    ]
+
+    token = struct!(Token, opts)
+
+    context_w_sep_i = %{ctext | docstring_sep: sep, docstring_indent: String.length(indent)}
+    %{context_w_sep_i | reverse_queue: [token | ctext.reverse_queue]}
+  end
+
+  def parse(DocStringSeparator, %Line{} = l, %PC{docstring_sep: sep} = ctext)
+      when sep in [@doc_sep, @doc_sep_alt] do
+    %{"indent" => indent, "matched_text" => matched_text} =
+      sep |> base_docstring_regex() |> Regex.named_captures(l.content)
+
+    opts = [
+      matched_type: DocStringSeparator,
+      line: l,
+      indent: String.length(indent) + 1,
+      matched_text: matched_text,
+      matched_keyword: sep
+    ]
+
+    token = struct!(Token, opts)
+
+    context_w_sep_i = %{ctext | docstring_sep: nil, docstring_indent: nil}
+    %{context_w_sep_i | reverse_queue: [token | ctext.reverse_queue]}
   end
 
   def parse(Language, %Line{content: c} = l, context) do
-    raise "load different lexicon"
+    # raise "load different lexicon"
     %{"lang" => lang} = Regex.named_captures(@language_regex, c)
+    {:ok, new_lexicon} = ExGherkin.Gherkin.Lexicon.load_lang(lang)
     token = struct!(Token, line: l, matched_type: Language, matched_text: lang)
-    %{context | reverse_queue: [token | context.reverse_queue]}
+    %{context | reverse_queue: [token | context.reverse_queue], lexicon: new_lexicon}
   end
 
-  def parse(Other, %Line{content: c} = l, context) do
-    token = struct!(Token, line: l, matched_type: Other, matched_text: c)
-    %{context | reverse_queue: [token | context.reverse_queue]}
+  def parse(Other, %Line{content: c} = l, %PC{docstring_indent: i, docstring_sep: s} = pc) do
+    indent_to_remove = i || 0
+    cleaned_txt = c |> trim_x(" ", indent_to_remove) |> unescape_docstring(s)
+    token = struct!(Token, line: l, matched_type: Other, matched_text: cleaned_txt)
+    %{pc | reverse_queue: [token | pc.reverse_queue]}
   end
+
+  defp unescape_docstring(t, @doc_sep), do: String.replace(t, "\\\"\\\"\\\"", @doc_sep)
+  defp unescape_docstring(t, @doc_sep_alt), do: String.replace(t, "\\`\\`\\`", @doc_sep_alt)
+  defp unescape_docstring(t, nil), do: t
 end
