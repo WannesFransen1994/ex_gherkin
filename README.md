@@ -1,5 +1,25 @@
 # ExGherkin
 
+* install elixir
+* clone this repo
+* mix deps.get
+* mix test
+
+Or you can test manually
+```
+$ iex --werl -S mix run # starts an interactive shell
+iex> "testdata/good/very_long.feature" |> ExGherkin.tokenize |> IO.puts
+iex> parser_context = "testdata/good/very_long.feature" |> ExGherkin.parse
+iex> parser_context.errors
+[]
+iex> parser_context.tokens
+.... a lot of data
+iex> Map.keys parser_context
+[:__struct__, :docstring_indent, :docstring_sep, :errors, :language, :lexicon,
+ :lines, :reverse_queue, :smthing_with_ast_builder?, :state, :tokens]
+```
+Note: above output is not guaranteed after some updates. This is just to illustrate the usage.
+
 **TODO: Add description**
 
 ## Installation
