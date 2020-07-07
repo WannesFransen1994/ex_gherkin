@@ -8,13 +8,17 @@
 {
     switch(production.Type) {
         case ProductionRuleType.Start:
-                @:startRule(context, RuleType.@production.RuleName);
+                @:AstBuilder.start_rule(@production.RuleName) |>
             break;
         case ProductionRuleType.End:
-                @:endRule(context, RuleType.@production.RuleName);
+                @:AstBuilder.end_rule(@production.RuleName) |>
             break;
         case ProductionRuleType.Process:
-                @:build(context, token);
+                @*
+                # What is the exact responsibility of this func? is the token added here?
+                #   Don't put the token immediately in the list but do something else with it here?
+                *@
+                @:AstBuilder.build();
             break;
     }
 }
@@ -48,7 +52,7 @@ defmodule ExGherkin.ParserContext do
 end
 
 defmodule ExGherkin.@Model.ParserClassName do
-  alias ExGherkin.{ParserContext, TokenMatcher, Token, Line}
+  alias ExGherkin.{ParserContext, TokenMatcher, Token, Line, AstBuilder}
 
   def parse(text) when is_binary(text), do: text |> String.split(~r/\R/) |> parse
 
@@ -92,8 +96,13 @@ defmodule ExGherkin.@Model.ParserClassName do
             <text>TokenMatcher.match?(@transition.TokenType , line, context) -> </text>
           }
           <text>
-            context_w_added_token = TokenMatcher.parse(@transition.TokenType , line, context)
-            %{context_w_added_token | state: @transition.TargetState}
+            updated_context =
+              TokenMatcher.parse(@transition.TokenType , line, context)
+              |>
+          </text>
+          foreach(var production in transition.Productions){ @CallProduction(production) }
+          <text>
+          %{updated_context | state: @transition.TargetState}
           </text>
         }
       @* # Code below is basically called when no other token matches.  *@

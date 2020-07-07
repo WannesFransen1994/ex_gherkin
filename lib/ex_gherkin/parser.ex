@@ -20,7 +20,7 @@ defmodule ExGherkin.ParserContext do
 end
 
 defmodule ExGherkin.Parser do
-  alias ExGherkin.{ParserContext, TokenMatcher, Token, Line}
+  alias ExGherkin.{ParserContext, TokenMatcher, Token, Line, AstBuilder}
 
   def parse(text) when is_binary(text), do: text |> String.split(~r/\R/) |> parse
 
@@ -54,28 +54,53 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 0} = context) do
     cond do
       TokenMatcher.match?(EOF, line, context) ->
-        context_w_added_token = TokenMatcher.parse(EOF, line, context)
-        %{context_w_added_token | state: 41}
+        updated_context =
+          TokenMatcher.parse(EOF, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 41}
 
       TokenMatcher.match?(Language, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Language, line, context)
-        %{context_w_added_token | state: 1}
+        updated_context =
+          TokenMatcher.parse(Language, line, context)
+          |> AstBuilder.start_rule(Feature)
+          |> AstBuilder.start_rule(FeatureHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 1}
 
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 2}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.start_rule(Feature)
+          |> AstBuilder.start_rule(FeatureHeader)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 2}
 
       TokenMatcher.match?(FeatureLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(FeatureLine, line, context)
-        %{context_w_added_token | state: 3}
+        updated_context =
+          TokenMatcher.parse(FeatureLine, line, context)
+          |> AstBuilder.start_rule(Feature)
+          |> AstBuilder.start_rule(FeatureHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 3}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 0}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 0}
 
       TokenMatcher.match?(Empty, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Empty, line, context)
-        %{context_w_added_token | state: 0}
+        updated_context =
+          TokenMatcher.parse(Empty, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 0}
 
       true ->
         state_comment = "State: 0 - Start"
@@ -87,20 +112,33 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 1} = context) do
     cond do
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 2}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 2}
 
       TokenMatcher.match?(FeatureLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(FeatureLine, line, context)
-        %{context_w_added_token | state: 3}
+        updated_context =
+          TokenMatcher.parse(FeatureLine, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 3}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 1}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 1}
 
       TokenMatcher.match?(Empty, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Empty, line, context)
-        %{context_w_added_token | state: 1}
+        updated_context =
+          TokenMatcher.parse(Empty, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 1}
 
       true ->
         state_comment = "State: 1 - GherkinDocument:0>Feature:0>FeatureHeader:0>#Language:0"
@@ -112,20 +150,33 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 2} = context) do
     cond do
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 2}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 2}
 
       TokenMatcher.match?(FeatureLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(FeatureLine, line, context)
-        %{context_w_added_token | state: 3}
+        updated_context =
+          TokenMatcher.parse(FeatureLine, line, context)
+          |> AstBuilder.end_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 3}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 2}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 2}
 
       TokenMatcher.match?(Empty, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Empty, line, context)
-        %{context_w_added_token | state: 2}
+        updated_context =
+          TokenMatcher.parse(Empty, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 2}
 
       true ->
         state_comment = "State: 2 - GherkinDocument:0>Feature:0>FeatureHeader:1>Tags:0>#TagLine:0"
@@ -137,36 +188,74 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 3} = context) do
     cond do
       TokenMatcher.match?(EOF, line, context) ->
-        context_w_added_token = TokenMatcher.parse(EOF, line, context)
-        %{context_w_added_token | state: 41}
+        updated_context =
+          TokenMatcher.parse(EOF, line, context)
+          |> AstBuilder.end_rule(FeatureHeader)
+          |> AstBuilder.end_rule(Feature)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 41}
 
       TokenMatcher.match?(Empty, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Empty, line, context)
-        %{context_w_added_token | state: 3}
+        updated_context =
+          TokenMatcher.parse(Empty, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 3}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 5}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 5}
 
       TokenMatcher.match?(BackgroundLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(BackgroundLine, line, context)
-        %{context_w_added_token | state: 6}
+        updated_context =
+          TokenMatcher.parse(BackgroundLine, line, context)
+          |> AstBuilder.end_rule(FeatureHeader)
+          |> AstBuilder.start_rule(Background)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 6}
 
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 11}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(FeatureHeader)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 11}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 12}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(FeatureHeader)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 12}
 
       TokenMatcher.match?(RuleLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(RuleLine, line, context)
-        %{context_w_added_token | state: 22}
+        updated_context =
+          TokenMatcher.parse(RuleLine, line, context)
+          |> AstBuilder.end_rule(FeatureHeader)
+          |> AstBuilder.start_rule(Rule)
+          |> AstBuilder.start_rule(RuleHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 22}
 
       TokenMatcher.match?(Other, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Other, line, context)
-        %{context_w_added_token | state: 4}
+        updated_context =
+          TokenMatcher.parse(Other, line, context)
+          |> AstBuilder.start_rule(Description)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 4}
 
       true ->
         state_comment = "State: 3 - GherkinDocument:0>Feature:0>FeatureHeader:2>#FeatureLine:0"
@@ -189,32 +278,72 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 4} = context) do
     cond do
       TokenMatcher.match?(EOF, line, context) ->
-        context_w_added_token = TokenMatcher.parse(EOF, line, context)
-        %{context_w_added_token | state: 41}
+        updated_context =
+          TokenMatcher.parse(EOF, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.end_rule(FeatureHeader)
+          |> AstBuilder.end_rule(Feature)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 41}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 5}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 5}
 
       TokenMatcher.match?(BackgroundLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(BackgroundLine, line, context)
-        %{context_w_added_token | state: 6}
+        updated_context =
+          TokenMatcher.parse(BackgroundLine, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.end_rule(FeatureHeader)
+          |> AstBuilder.start_rule(Background)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 6}
 
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 11}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.end_rule(FeatureHeader)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 11}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 12}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.end_rule(FeatureHeader)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 12}
 
       TokenMatcher.match?(RuleLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(RuleLine, line, context)
-        %{context_w_added_token | state: 22}
+        updated_context =
+          TokenMatcher.parse(RuleLine, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.end_rule(FeatureHeader)
+          |> AstBuilder.start_rule(Rule)
+          |> AstBuilder.start_rule(RuleHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 22}
 
       TokenMatcher.match?(Other, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Other, line, context)
-        %{context_w_added_token | state: 4}
+        updated_context =
+          TokenMatcher.parse(Other, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 4}
 
       true ->
         state_comment =
@@ -237,32 +366,66 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 5} = context) do
     cond do
       TokenMatcher.match?(EOF, line, context) ->
-        context_w_added_token = TokenMatcher.parse(EOF, line, context)
-        %{context_w_added_token | state: 41}
+        updated_context =
+          TokenMatcher.parse(EOF, line, context)
+          |> AstBuilder.end_rule(FeatureHeader)
+          |> AstBuilder.end_rule(Feature)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 41}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 5}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 5}
 
       TokenMatcher.match?(BackgroundLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(BackgroundLine, line, context)
-        %{context_w_added_token | state: 6}
+        updated_context =
+          TokenMatcher.parse(BackgroundLine, line, context)
+          |> AstBuilder.end_rule(FeatureHeader)
+          |> AstBuilder.start_rule(Background)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 6}
 
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 11}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(FeatureHeader)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 11}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 12}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(FeatureHeader)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 12}
 
       TokenMatcher.match?(RuleLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(RuleLine, line, context)
-        %{context_w_added_token | state: 22}
+        updated_context =
+          TokenMatcher.parse(RuleLine, line, context)
+          |> AstBuilder.end_rule(FeatureHeader)
+          |> AstBuilder.start_rule(Rule)
+          |> AstBuilder.start_rule(RuleHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 22}
 
       TokenMatcher.match?(Empty, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Empty, line, context)
-        %{context_w_added_token | state: 5}
+        updated_context =
+          TokenMatcher.parse(Empty, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 5}
 
       true ->
         state_comment =
@@ -285,36 +448,73 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 6} = context) do
     cond do
       TokenMatcher.match?(EOF, line, context) ->
-        context_w_added_token = TokenMatcher.parse(EOF, line, context)
-        %{context_w_added_token | state: 41}
+        updated_context =
+          TokenMatcher.parse(EOF, line, context)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.end_rule(Feature)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 41}
 
       TokenMatcher.match?(Empty, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Empty, line, context)
-        %{context_w_added_token | state: 6}
+        updated_context =
+          TokenMatcher.parse(Empty, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 6}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 8}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 8}
 
       TokenMatcher.match?(StepLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(StepLine, line, context)
-        %{context_w_added_token | state: 9}
+        updated_context =
+          TokenMatcher.parse(StepLine, line, context)
+          |> AstBuilder.start_rule(Step)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 9}
 
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 11}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 11}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 12}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 12}
 
       TokenMatcher.match?(RuleLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(RuleLine, line, context)
-        %{context_w_added_token | state: 22}
+        updated_context =
+          TokenMatcher.parse(RuleLine, line, context)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.start_rule(Rule)
+          |> AstBuilder.start_rule(RuleHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 22}
 
       TokenMatcher.match?(Other, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Other, line, context)
-        %{context_w_added_token | state: 7}
+        updated_context =
+          TokenMatcher.parse(Other, line, context)
+          |> AstBuilder.start_rule(Description)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 7}
 
       true ->
         state_comment = "State: 6 - GherkinDocument:0>Feature:1>Background:0>#BackgroundLine:0"
@@ -337,32 +537,71 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 7} = context) do
     cond do
       TokenMatcher.match?(EOF, line, context) ->
-        context_w_added_token = TokenMatcher.parse(EOF, line, context)
-        %{context_w_added_token | state: 41}
+        updated_context =
+          TokenMatcher.parse(EOF, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.end_rule(Feature)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 41}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 8}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 8}
 
       TokenMatcher.match?(StepLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(StepLine, line, context)
-        %{context_w_added_token | state: 9}
+        updated_context =
+          TokenMatcher.parse(StepLine, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.start_rule(Step)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 9}
 
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 11}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 11}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 12}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 12}
 
       TokenMatcher.match?(RuleLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(RuleLine, line, context)
-        %{context_w_added_token | state: 22}
+        updated_context =
+          TokenMatcher.parse(RuleLine, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.start_rule(Rule)
+          |> AstBuilder.start_rule(RuleHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 22}
 
       TokenMatcher.match?(Other, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Other, line, context)
-        %{context_w_added_token | state: 7}
+        updated_context =
+          TokenMatcher.parse(Other, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 7}
 
       true ->
         state_comment =
@@ -385,32 +624,65 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 8} = context) do
     cond do
       TokenMatcher.match?(EOF, line, context) ->
-        context_w_added_token = TokenMatcher.parse(EOF, line, context)
-        %{context_w_added_token | state: 41}
+        updated_context =
+          TokenMatcher.parse(EOF, line, context)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.end_rule(Feature)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 41}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 8}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 8}
 
       TokenMatcher.match?(StepLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(StepLine, line, context)
-        %{context_w_added_token | state: 9}
+        updated_context =
+          TokenMatcher.parse(StepLine, line, context)
+          |> AstBuilder.start_rule(Step)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 9}
 
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 11}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 11}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 12}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 12}
 
       TokenMatcher.match?(RuleLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(RuleLine, line, context)
-        %{context_w_added_token | state: 22}
+        updated_context =
+          TokenMatcher.parse(RuleLine, line, context)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.start_rule(Rule)
+          |> AstBuilder.start_rule(RuleHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 22}
 
       TokenMatcher.match?(Empty, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Empty, line, context)
-        %{context_w_added_token | state: 8}
+        updated_context =
+          TokenMatcher.parse(Empty, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 8}
 
       true ->
         state_comment =
@@ -433,40 +705,86 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 9} = context) do
     cond do
       TokenMatcher.match?(EOF, line, context) ->
-        context_w_added_token = TokenMatcher.parse(EOF, line, context)
-        %{context_w_added_token | state: 41}
+        updated_context =
+          TokenMatcher.parse(EOF, line, context)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.end_rule(Feature)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 41}
 
       TokenMatcher.match?(TableRow, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TableRow, line, context)
-        %{context_w_added_token | state: 10}
+        updated_context =
+          TokenMatcher.parse(TableRow, line, context)
+          |> AstBuilder.start_rule(DataTable)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 10}
 
       TokenMatcher.match?(DocStringSeparator, line, context) ->
-        context_w_added_token = TokenMatcher.parse(DocStringSeparator, line, context)
-        %{context_w_added_token | state: 48}
+        updated_context =
+          TokenMatcher.parse(DocStringSeparator, line, context)
+          |> AstBuilder.start_rule(DocString)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 48}
 
       TokenMatcher.match?(StepLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(StepLine, line, context)
-        %{context_w_added_token | state: 9}
+        updated_context =
+          TokenMatcher.parse(StepLine, line, context)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.start_rule(Step)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 9}
 
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 11}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 11}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 12}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 12}
 
       TokenMatcher.match?(RuleLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(RuleLine, line, context)
-        %{context_w_added_token | state: 22}
+        updated_context =
+          TokenMatcher.parse(RuleLine, line, context)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.start_rule(Rule)
+          |> AstBuilder.start_rule(RuleHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 22}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 9}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 9}
 
       TokenMatcher.match?(Empty, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Empty, line, context)
-        %{context_w_added_token | state: 9}
+        updated_context =
+          TokenMatcher.parse(Empty, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 9}
 
       true ->
         state_comment = "State: 9 - GherkinDocument:0>Feature:1>Background:2>Step:0>#StepLine:0"
@@ -490,36 +808,82 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 10} = context) do
     cond do
       TokenMatcher.match?(EOF, line, context) ->
-        context_w_added_token = TokenMatcher.parse(EOF, line, context)
-        %{context_w_added_token | state: 41}
+        updated_context =
+          TokenMatcher.parse(EOF, line, context)
+          |> AstBuilder.end_rule(DataTable)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.end_rule(Feature)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 41}
 
       TokenMatcher.match?(TableRow, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TableRow, line, context)
-        %{context_w_added_token | state: 10}
+        updated_context =
+          TokenMatcher.parse(TableRow, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 10}
 
       TokenMatcher.match?(StepLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(StepLine, line, context)
-        %{context_w_added_token | state: 9}
+        updated_context =
+          TokenMatcher.parse(StepLine, line, context)
+          |> AstBuilder.end_rule(DataTable)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.start_rule(Step)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 9}
 
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 11}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(DataTable)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 11}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 12}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(DataTable)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 12}
 
       TokenMatcher.match?(RuleLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(RuleLine, line, context)
-        %{context_w_added_token | state: 22}
+        updated_context =
+          TokenMatcher.parse(RuleLine, line, context)
+          |> AstBuilder.end_rule(DataTable)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.start_rule(Rule)
+          |> AstBuilder.start_rule(RuleHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 22}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 10}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 10}
 
       TokenMatcher.match?(Empty, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Empty, line, context)
-        %{context_w_added_token | state: 10}
+        updated_context =
+          TokenMatcher.parse(Empty, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 10}
 
       true ->
         state_comment =
@@ -543,20 +907,34 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 11} = context) do
     cond do
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 11}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 11}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 12}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(Tags)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 12}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 11}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 11}
 
       TokenMatcher.match?(Empty, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Empty, line, context)
-        %{context_w_added_token | state: 11}
+        updated_context =
+          TokenMatcher.parse(Empty, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 11}
 
       true ->
         state_comment =
@@ -570,45 +948,96 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 12} = context) do
     cond do
       TokenMatcher.match?(EOF, line, context) ->
-        context_w_added_token = TokenMatcher.parse(EOF, line, context)
-        %{context_w_added_token | state: 41}
+        updated_context =
+          TokenMatcher.parse(EOF, line, context)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.end_rule(Feature)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 41}
 
       TokenMatcher.match?(Empty, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Empty, line, context)
-        %{context_w_added_token | state: 12}
+        updated_context =
+          TokenMatcher.parse(Empty, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 12}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 14}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 14}
 
       TokenMatcher.match?(StepLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(StepLine, line, context)
-        %{context_w_added_token | state: 15}
+        updated_context =
+          TokenMatcher.parse(StepLine, line, context)
+          |> AstBuilder.start_rule(Step)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 15}
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 17}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 17}
 
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 11}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 11}
 
       TokenMatcher.match?(ExamplesLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ExamplesLine, line, context)
-        %{context_w_added_token | state: 18}
+        updated_context =
+          TokenMatcher.parse(ExamplesLine, line, context)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Examples)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 18}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 12}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 12}
 
       TokenMatcher.match?(RuleLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(RuleLine, line, context)
-        %{context_w_added_token | state: 22}
+        updated_context =
+          TokenMatcher.parse(RuleLine, line, context)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Rule)
+          |> AstBuilder.start_rule(RuleHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 22}
 
       TokenMatcher.match?(Other, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Other, line, context)
-        %{context_w_added_token | state: 13}
+        updated_context =
+          TokenMatcher.parse(Other, line, context)
+          |> AstBuilder.start_rule(Description)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 13}
 
       true ->
         state_comment =
@@ -633,41 +1062,96 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 13} = context) do
     cond do
       TokenMatcher.match?(EOF, line, context) ->
-        context_w_added_token = TokenMatcher.parse(EOF, line, context)
-        %{context_w_added_token | state: 41}
+        updated_context =
+          TokenMatcher.parse(EOF, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.end_rule(Feature)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 41}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 14}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 14}
 
       TokenMatcher.match?(StepLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(StepLine, line, context)
-        %{context_w_added_token | state: 15}
+        updated_context =
+          TokenMatcher.parse(StepLine, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.start_rule(Step)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 15}
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 17}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 17}
 
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 11}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 11}
 
       TokenMatcher.match?(ExamplesLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ExamplesLine, line, context)
-        %{context_w_added_token | state: 18}
+        updated_context =
+          TokenMatcher.parse(ExamplesLine, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Examples)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 18}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 12}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 12}
 
       TokenMatcher.match?(RuleLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(RuleLine, line, context)
-        %{context_w_added_token | state: 22}
+        updated_context =
+          TokenMatcher.parse(RuleLine, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Rule)
+          |> AstBuilder.start_rule(RuleHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 22}
 
       TokenMatcher.match?(Other, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Other, line, context)
-        %{context_w_added_token | state: 13}
+        updated_context =
+          TokenMatcher.parse(Other, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 13}
 
       true ->
         state_comment =
@@ -691,41 +1175,88 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 14} = context) do
     cond do
       TokenMatcher.match?(EOF, line, context) ->
-        context_w_added_token = TokenMatcher.parse(EOF, line, context)
-        %{context_w_added_token | state: 41}
+        updated_context =
+          TokenMatcher.parse(EOF, line, context)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.end_rule(Feature)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 41}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 14}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 14}
 
       TokenMatcher.match?(StepLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(StepLine, line, context)
-        %{context_w_added_token | state: 15}
+        updated_context =
+          TokenMatcher.parse(StepLine, line, context)
+          |> AstBuilder.start_rule(Step)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 15}
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 17}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 17}
 
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 11}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 11}
 
       TokenMatcher.match?(ExamplesLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ExamplesLine, line, context)
-        %{context_w_added_token | state: 18}
+        updated_context =
+          TokenMatcher.parse(ExamplesLine, line, context)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Examples)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 18}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 12}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 12}
 
       TokenMatcher.match?(RuleLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(RuleLine, line, context)
-        %{context_w_added_token | state: 22}
+        updated_context =
+          TokenMatcher.parse(RuleLine, line, context)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Rule)
+          |> AstBuilder.start_rule(RuleHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 22}
 
       TokenMatcher.match?(Empty, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Empty, line, context)
-        %{context_w_added_token | state: 14}
+        updated_context =
+          TokenMatcher.parse(Empty, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 14}
 
       true ->
         state_comment =
@@ -749,49 +1280,111 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 15} = context) do
     cond do
       TokenMatcher.match?(EOF, line, context) ->
-        context_w_added_token = TokenMatcher.parse(EOF, line, context)
-        %{context_w_added_token | state: 41}
+        updated_context =
+          TokenMatcher.parse(EOF, line, context)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.end_rule(Feature)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 41}
 
       TokenMatcher.match?(TableRow, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TableRow, line, context)
-        %{context_w_added_token | state: 16}
+        updated_context =
+          TokenMatcher.parse(TableRow, line, context)
+          |> AstBuilder.start_rule(DataTable)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 16}
 
       TokenMatcher.match?(DocStringSeparator, line, context) ->
-        context_w_added_token = TokenMatcher.parse(DocStringSeparator, line, context)
-        %{context_w_added_token | state: 46}
+        updated_context =
+          TokenMatcher.parse(DocStringSeparator, line, context)
+          |> AstBuilder.start_rule(DocString)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 46}
 
       TokenMatcher.match?(StepLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(StepLine, line, context)
-        %{context_w_added_token | state: 15}
+        updated_context =
+          TokenMatcher.parse(StepLine, line, context)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.start_rule(Step)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 15}
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 17}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 17}
 
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 11}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 11}
 
       TokenMatcher.match?(ExamplesLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ExamplesLine, line, context)
-        %{context_w_added_token | state: 18}
+        updated_context =
+          TokenMatcher.parse(ExamplesLine, line, context)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Examples)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 18}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 12}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 12}
 
       TokenMatcher.match?(RuleLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(RuleLine, line, context)
-        %{context_w_added_token | state: 22}
+        updated_context =
+          TokenMatcher.parse(RuleLine, line, context)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Rule)
+          |> AstBuilder.start_rule(RuleHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 22}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 15}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 15}
 
       TokenMatcher.match?(Empty, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Empty, line, context)
-        %{context_w_added_token | state: 15}
+        updated_context =
+          TokenMatcher.parse(Empty, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 15}
 
       true ->
         state_comment =
@@ -817,45 +1410,109 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 16} = context) do
     cond do
       TokenMatcher.match?(EOF, line, context) ->
-        context_w_added_token = TokenMatcher.parse(EOF, line, context)
-        %{context_w_added_token | state: 41}
+        updated_context =
+          TokenMatcher.parse(EOF, line, context)
+          |> AstBuilder.end_rule(DataTable)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.end_rule(Feature)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 41}
 
       TokenMatcher.match?(TableRow, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TableRow, line, context)
-        %{context_w_added_token | state: 16}
+        updated_context =
+          TokenMatcher.parse(TableRow, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 16}
 
       TokenMatcher.match?(StepLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(StepLine, line, context)
-        %{context_w_added_token | state: 15}
+        updated_context =
+          TokenMatcher.parse(StepLine, line, context)
+          |> AstBuilder.end_rule(DataTable)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.start_rule(Step)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 15}
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 17}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(DataTable)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 17}
 
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 11}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(DataTable)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 11}
 
       TokenMatcher.match?(ExamplesLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ExamplesLine, line, context)
-        %{context_w_added_token | state: 18}
+        updated_context =
+          TokenMatcher.parse(ExamplesLine, line, context)
+          |> AstBuilder.end_rule(DataTable)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Examples)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 18}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 12}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(DataTable)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 12}
 
       TokenMatcher.match?(RuleLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(RuleLine, line, context)
-        %{context_w_added_token | state: 22}
+        updated_context =
+          TokenMatcher.parse(RuleLine, line, context)
+          |> AstBuilder.end_rule(DataTable)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Rule)
+          |> AstBuilder.start_rule(RuleHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 22}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 16}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 16}
 
       TokenMatcher.match?(Empty, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Empty, line, context)
-        %{context_w_added_token | state: 16}
+        updated_context =
+          TokenMatcher.parse(Empty, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 16}
 
       true ->
         state_comment =
@@ -880,20 +1537,34 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 17} = context) do
     cond do
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 17}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 17}
 
       TokenMatcher.match?(ExamplesLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ExamplesLine, line, context)
-        %{context_w_added_token | state: 18}
+        updated_context =
+          TokenMatcher.parse(ExamplesLine, line, context)
+          |> AstBuilder.end_rule(Tags)
+          |> AstBuilder.start_rule(Examples)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 18}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 17}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 17}
 
       TokenMatcher.match?(Empty, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Empty, line, context)
-        %{context_w_added_token | state: 17}
+        updated_context =
+          TokenMatcher.parse(Empty, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 17}
 
       true ->
         state_comment =
@@ -907,45 +1578,108 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 18} = context) do
     cond do
       TokenMatcher.match?(EOF, line, context) ->
-        context_w_added_token = TokenMatcher.parse(EOF, line, context)
-        %{context_w_added_token | state: 41}
+        updated_context =
+          TokenMatcher.parse(EOF, line, context)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.end_rule(Feature)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 41}
 
       TokenMatcher.match?(Empty, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Empty, line, context)
-        %{context_w_added_token | state: 18}
+        updated_context =
+          TokenMatcher.parse(Empty, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 18}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 20}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 20}
 
       TokenMatcher.match?(TableRow, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TableRow, line, context)
-        %{context_w_added_token | state: 21}
+        updated_context =
+          TokenMatcher.parse(TableRow, line, context)
+          |> AstBuilder.start_rule(ExamplesTable)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 21}
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 17}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 17}
 
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 11}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 11}
 
       TokenMatcher.match?(ExamplesLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ExamplesLine, line, context)
-        %{context_w_added_token | state: 18}
+        updated_context =
+          TokenMatcher.parse(ExamplesLine, line, context)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Examples)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 18}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 12}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 12}
 
       TokenMatcher.match?(RuleLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(RuleLine, line, context)
-        %{context_w_added_token | state: 22}
+        updated_context =
+          TokenMatcher.parse(RuleLine, line, context)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Rule)
+          |> AstBuilder.start_rule(RuleHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 22}
 
       TokenMatcher.match?(Other, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Other, line, context)
-        %{context_w_added_token | state: 19}
+        updated_context =
+          TokenMatcher.parse(Other, line, context)
+          |> AstBuilder.start_rule(Description)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 19}
 
       true ->
         state_comment =
@@ -970,41 +1704,108 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 19} = context) do
     cond do
       TokenMatcher.match?(EOF, line, context) ->
-        context_w_added_token = TokenMatcher.parse(EOF, line, context)
-        %{context_w_added_token | state: 41}
+        updated_context =
+          TokenMatcher.parse(EOF, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.end_rule(Feature)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 41}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 20}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 20}
 
       TokenMatcher.match?(TableRow, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TableRow, line, context)
-        %{context_w_added_token | state: 21}
+        updated_context =
+          TokenMatcher.parse(TableRow, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.start_rule(ExamplesTable)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 21}
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 17}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 17}
 
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 11}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 11}
 
       TokenMatcher.match?(ExamplesLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ExamplesLine, line, context)
-        %{context_w_added_token | state: 18}
+        updated_context =
+          TokenMatcher.parse(ExamplesLine, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Examples)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 18}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 12}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 12}
 
       TokenMatcher.match?(RuleLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(RuleLine, line, context)
-        %{context_w_added_token | state: 22}
+        updated_context =
+          TokenMatcher.parse(RuleLine, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Rule)
+          |> AstBuilder.start_rule(RuleHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 22}
 
       TokenMatcher.match?(Other, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Other, line, context)
-        %{context_w_added_token | state: 19}
+        updated_context =
+          TokenMatcher.parse(Other, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 19}
 
       true ->
         state_comment =
@@ -1028,41 +1829,100 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 20} = context) do
     cond do
       TokenMatcher.match?(EOF, line, context) ->
-        context_w_added_token = TokenMatcher.parse(EOF, line, context)
-        %{context_w_added_token | state: 41}
+        updated_context =
+          TokenMatcher.parse(EOF, line, context)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.end_rule(Feature)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 41}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 20}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 20}
 
       TokenMatcher.match?(TableRow, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TableRow, line, context)
-        %{context_w_added_token | state: 21}
+        updated_context =
+          TokenMatcher.parse(TableRow, line, context)
+          |> AstBuilder.start_rule(ExamplesTable)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 21}
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 17}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 17}
 
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 11}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 11}
 
       TokenMatcher.match?(ExamplesLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ExamplesLine, line, context)
-        %{context_w_added_token | state: 18}
+        updated_context =
+          TokenMatcher.parse(ExamplesLine, line, context)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Examples)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 18}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 12}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 12}
 
       TokenMatcher.match?(RuleLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(RuleLine, line, context)
-        %{context_w_added_token | state: 22}
+        updated_context =
+          TokenMatcher.parse(RuleLine, line, context)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Rule)
+          |> AstBuilder.start_rule(RuleHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 22}
 
       TokenMatcher.match?(Empty, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Empty, line, context)
-        %{context_w_added_token | state: 20}
+        updated_context =
+          TokenMatcher.parse(Empty, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 20}
 
       true ->
         state_comment =
@@ -1086,41 +1946,105 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 21} = context) do
     cond do
       TokenMatcher.match?(EOF, line, context) ->
-        context_w_added_token = TokenMatcher.parse(EOF, line, context)
-        %{context_w_added_token | state: 41}
+        updated_context =
+          TokenMatcher.parse(EOF, line, context)
+          |> AstBuilder.end_rule(ExamplesTable)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.end_rule(Feature)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 41}
 
       TokenMatcher.match?(TableRow, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TableRow, line, context)
-        %{context_w_added_token | state: 21}
+        updated_context =
+          TokenMatcher.parse(TableRow, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 21}
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 17}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(ExamplesTable)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 17}
 
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 11}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(ExamplesTable)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 11}
 
       TokenMatcher.match?(ExamplesLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ExamplesLine, line, context)
-        %{context_w_added_token | state: 18}
+        updated_context =
+          TokenMatcher.parse(ExamplesLine, line, context)
+          |> AstBuilder.end_rule(ExamplesTable)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Examples)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 18}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 12}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(ExamplesTable)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 12}
 
       TokenMatcher.match?(RuleLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(RuleLine, line, context)
-        %{context_w_added_token | state: 22}
+        updated_context =
+          TokenMatcher.parse(RuleLine, line, context)
+          |> AstBuilder.end_rule(ExamplesTable)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Rule)
+          |> AstBuilder.start_rule(RuleHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 22}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 21}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 21}
 
       TokenMatcher.match?(Empty, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Empty, line, context)
-        %{context_w_added_token | state: 21}
+        updated_context =
+          TokenMatcher.parse(Empty, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 21}
 
       true ->
         state_comment =
@@ -1144,36 +2068,76 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 22} = context) do
     cond do
       TokenMatcher.match?(EOF, line, context) ->
-        context_w_added_token = TokenMatcher.parse(EOF, line, context)
-        %{context_w_added_token | state: 41}
+        updated_context =
+          TokenMatcher.parse(EOF, line, context)
+          |> AstBuilder.end_rule(RuleHeader)
+          |> AstBuilder.end_rule(Rule)
+          |> AstBuilder.end_rule(Feature)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 41}
 
       TokenMatcher.match?(Empty, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Empty, line, context)
-        %{context_w_added_token | state: 22}
+        updated_context =
+          TokenMatcher.parse(Empty, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 22}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 24}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 24}
 
       TokenMatcher.match?(BackgroundLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(BackgroundLine, line, context)
-        %{context_w_added_token | state: 25}
+        updated_context =
+          TokenMatcher.parse(BackgroundLine, line, context)
+          |> AstBuilder.end_rule(RuleHeader)
+          |> AstBuilder.start_rule(Background)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 25}
 
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 30}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(RuleHeader)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 30}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 31}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(RuleHeader)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 31}
 
       TokenMatcher.match?(RuleLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(RuleLine, line, context)
-        %{context_w_added_token | state: 22}
+        updated_context =
+          TokenMatcher.parse(RuleLine, line, context)
+          |> AstBuilder.end_rule(RuleHeader)
+          |> AstBuilder.end_rule(Rule)
+          |> AstBuilder.start_rule(Rule)
+          |> AstBuilder.start_rule(RuleHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 22}
 
       TokenMatcher.match?(Other, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Other, line, context)
-        %{context_w_added_token | state: 23}
+        updated_context =
+          TokenMatcher.parse(Other, line, context)
+          |> AstBuilder.start_rule(Description)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 23}
 
       true ->
         state_comment = "State: 22 - GherkinDocument:0>Feature:3>Rule:0>RuleHeader:0>#RuleLine:0"
@@ -1196,32 +2160,74 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 23} = context) do
     cond do
       TokenMatcher.match?(EOF, line, context) ->
-        context_w_added_token = TokenMatcher.parse(EOF, line, context)
-        %{context_w_added_token | state: 41}
+        updated_context =
+          TokenMatcher.parse(EOF, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.end_rule(RuleHeader)
+          |> AstBuilder.end_rule(Rule)
+          |> AstBuilder.end_rule(Feature)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 41}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 24}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 24}
 
       TokenMatcher.match?(BackgroundLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(BackgroundLine, line, context)
-        %{context_w_added_token | state: 25}
+        updated_context =
+          TokenMatcher.parse(BackgroundLine, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.end_rule(RuleHeader)
+          |> AstBuilder.start_rule(Background)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 25}
 
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 30}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.end_rule(RuleHeader)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 30}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 31}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.end_rule(RuleHeader)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 31}
 
       TokenMatcher.match?(RuleLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(RuleLine, line, context)
-        %{context_w_added_token | state: 22}
+        updated_context =
+          TokenMatcher.parse(RuleLine, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.end_rule(RuleHeader)
+          |> AstBuilder.end_rule(Rule)
+          |> AstBuilder.start_rule(Rule)
+          |> AstBuilder.start_rule(RuleHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 22}
 
       TokenMatcher.match?(Other, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Other, line, context)
-        %{context_w_added_token | state: 23}
+        updated_context =
+          TokenMatcher.parse(Other, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 23}
 
       true ->
         state_comment =
@@ -1244,32 +2250,68 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 24} = context) do
     cond do
       TokenMatcher.match?(EOF, line, context) ->
-        context_w_added_token = TokenMatcher.parse(EOF, line, context)
-        %{context_w_added_token | state: 41}
+        updated_context =
+          TokenMatcher.parse(EOF, line, context)
+          |> AstBuilder.end_rule(RuleHeader)
+          |> AstBuilder.end_rule(Rule)
+          |> AstBuilder.end_rule(Feature)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 41}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 24}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 24}
 
       TokenMatcher.match?(BackgroundLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(BackgroundLine, line, context)
-        %{context_w_added_token | state: 25}
+        updated_context =
+          TokenMatcher.parse(BackgroundLine, line, context)
+          |> AstBuilder.end_rule(RuleHeader)
+          |> AstBuilder.start_rule(Background)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 25}
 
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 30}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(RuleHeader)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 30}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 31}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(RuleHeader)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 31}
 
       TokenMatcher.match?(RuleLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(RuleLine, line, context)
-        %{context_w_added_token | state: 22}
+        updated_context =
+          TokenMatcher.parse(RuleLine, line, context)
+          |> AstBuilder.end_rule(RuleHeader)
+          |> AstBuilder.end_rule(Rule)
+          |> AstBuilder.start_rule(Rule)
+          |> AstBuilder.start_rule(RuleHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 22}
 
       TokenMatcher.match?(Empty, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Empty, line, context)
-        %{context_w_added_token | state: 24}
+        updated_context =
+          TokenMatcher.parse(Empty, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 24}
 
       true ->
         state_comment =
@@ -1292,36 +2334,75 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 25} = context) do
     cond do
       TokenMatcher.match?(EOF, line, context) ->
-        context_w_added_token = TokenMatcher.parse(EOF, line, context)
-        %{context_w_added_token | state: 41}
+        updated_context =
+          TokenMatcher.parse(EOF, line, context)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.end_rule(Rule)
+          |> AstBuilder.end_rule(Feature)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 41}
 
       TokenMatcher.match?(Empty, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Empty, line, context)
-        %{context_w_added_token | state: 25}
+        updated_context =
+          TokenMatcher.parse(Empty, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 25}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 27}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 27}
 
       TokenMatcher.match?(StepLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(StepLine, line, context)
-        %{context_w_added_token | state: 28}
+        updated_context =
+          TokenMatcher.parse(StepLine, line, context)
+          |> AstBuilder.start_rule(Step)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 28}
 
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 30}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 30}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 31}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 31}
 
       TokenMatcher.match?(RuleLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(RuleLine, line, context)
-        %{context_w_added_token | state: 22}
+        updated_context =
+          TokenMatcher.parse(RuleLine, line, context)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.end_rule(Rule)
+          |> AstBuilder.start_rule(Rule)
+          |> AstBuilder.start_rule(RuleHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 22}
 
       TokenMatcher.match?(Other, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Other, line, context)
-        %{context_w_added_token | state: 26}
+        updated_context =
+          TokenMatcher.parse(Other, line, context)
+          |> AstBuilder.start_rule(Description)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 26}
 
       true ->
         state_comment =
@@ -1345,32 +2426,73 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 26} = context) do
     cond do
       TokenMatcher.match?(EOF, line, context) ->
-        context_w_added_token = TokenMatcher.parse(EOF, line, context)
-        %{context_w_added_token | state: 41}
+        updated_context =
+          TokenMatcher.parse(EOF, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.end_rule(Rule)
+          |> AstBuilder.end_rule(Feature)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 41}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 27}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 27}
 
       TokenMatcher.match?(StepLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(StepLine, line, context)
-        %{context_w_added_token | state: 28}
+        updated_context =
+          TokenMatcher.parse(StepLine, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.start_rule(Step)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 28}
 
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 30}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 30}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 31}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 31}
 
       TokenMatcher.match?(RuleLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(RuleLine, line, context)
-        %{context_w_added_token | state: 22}
+        updated_context =
+          TokenMatcher.parse(RuleLine, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.end_rule(Rule)
+          |> AstBuilder.start_rule(Rule)
+          |> AstBuilder.start_rule(RuleHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 22}
 
       TokenMatcher.match?(Other, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Other, line, context)
-        %{context_w_added_token | state: 26}
+        updated_context =
+          TokenMatcher.parse(Other, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 26}
 
       true ->
         state_comment =
@@ -1393,32 +2515,67 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 27} = context) do
     cond do
       TokenMatcher.match?(EOF, line, context) ->
-        context_w_added_token = TokenMatcher.parse(EOF, line, context)
-        %{context_w_added_token | state: 41}
+        updated_context =
+          TokenMatcher.parse(EOF, line, context)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.end_rule(Rule)
+          |> AstBuilder.end_rule(Feature)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 41}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 27}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 27}
 
       TokenMatcher.match?(StepLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(StepLine, line, context)
-        %{context_w_added_token | state: 28}
+        updated_context =
+          TokenMatcher.parse(StepLine, line, context)
+          |> AstBuilder.start_rule(Step)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 28}
 
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 30}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 30}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 31}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 31}
 
       TokenMatcher.match?(RuleLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(RuleLine, line, context)
-        %{context_w_added_token | state: 22}
+        updated_context =
+          TokenMatcher.parse(RuleLine, line, context)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.end_rule(Rule)
+          |> AstBuilder.start_rule(Rule)
+          |> AstBuilder.start_rule(RuleHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 22}
 
       TokenMatcher.match?(Empty, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Empty, line, context)
-        %{context_w_added_token | state: 27}
+        updated_context =
+          TokenMatcher.parse(Empty, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 27}
 
       true ->
         state_comment =
@@ -1441,40 +2598,88 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 28} = context) do
     cond do
       TokenMatcher.match?(EOF, line, context) ->
-        context_w_added_token = TokenMatcher.parse(EOF, line, context)
-        %{context_w_added_token | state: 41}
+        updated_context =
+          TokenMatcher.parse(EOF, line, context)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.end_rule(Rule)
+          |> AstBuilder.end_rule(Feature)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 41}
 
       TokenMatcher.match?(TableRow, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TableRow, line, context)
-        %{context_w_added_token | state: 29}
+        updated_context =
+          TokenMatcher.parse(TableRow, line, context)
+          |> AstBuilder.start_rule(DataTable)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 29}
 
       TokenMatcher.match?(DocStringSeparator, line, context) ->
-        context_w_added_token = TokenMatcher.parse(DocStringSeparator, line, context)
-        %{context_w_added_token | state: 44}
+        updated_context =
+          TokenMatcher.parse(DocStringSeparator, line, context)
+          |> AstBuilder.start_rule(DocString)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 44}
 
       TokenMatcher.match?(StepLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(StepLine, line, context)
-        %{context_w_added_token | state: 28}
+        updated_context =
+          TokenMatcher.parse(StepLine, line, context)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.start_rule(Step)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 28}
 
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 30}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 30}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 31}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 31}
 
       TokenMatcher.match?(RuleLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(RuleLine, line, context)
-        %{context_w_added_token | state: 22}
+        updated_context =
+          TokenMatcher.parse(RuleLine, line, context)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.end_rule(Rule)
+          |> AstBuilder.start_rule(Rule)
+          |> AstBuilder.start_rule(RuleHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 22}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 28}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 28}
 
       TokenMatcher.match?(Empty, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Empty, line, context)
-        %{context_w_added_token | state: 28}
+        updated_context =
+          TokenMatcher.parse(Empty, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 28}
 
       true ->
         state_comment =
@@ -1499,36 +2704,84 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 29} = context) do
     cond do
       TokenMatcher.match?(EOF, line, context) ->
-        context_w_added_token = TokenMatcher.parse(EOF, line, context)
-        %{context_w_added_token | state: 41}
+        updated_context =
+          TokenMatcher.parse(EOF, line, context)
+          |> AstBuilder.end_rule(DataTable)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.end_rule(Rule)
+          |> AstBuilder.end_rule(Feature)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 41}
 
       TokenMatcher.match?(TableRow, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TableRow, line, context)
-        %{context_w_added_token | state: 29}
+        updated_context =
+          TokenMatcher.parse(TableRow, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 29}
 
       TokenMatcher.match?(StepLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(StepLine, line, context)
-        %{context_w_added_token | state: 28}
+        updated_context =
+          TokenMatcher.parse(StepLine, line, context)
+          |> AstBuilder.end_rule(DataTable)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.start_rule(Step)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 28}
 
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 30}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(DataTable)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 30}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 31}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(DataTable)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 31}
 
       TokenMatcher.match?(RuleLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(RuleLine, line, context)
-        %{context_w_added_token | state: 22}
+        updated_context =
+          TokenMatcher.parse(RuleLine, line, context)
+          |> AstBuilder.end_rule(DataTable)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.end_rule(Rule)
+          |> AstBuilder.start_rule(Rule)
+          |> AstBuilder.start_rule(RuleHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 22}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 29}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 29}
 
       TokenMatcher.match?(Empty, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Empty, line, context)
-        %{context_w_added_token | state: 29}
+        updated_context =
+          TokenMatcher.parse(Empty, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 29}
 
       true ->
         state_comment =
@@ -1552,20 +2805,34 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 30} = context) do
     cond do
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 30}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 30}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 31}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(Tags)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 31}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 30}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 30}
 
       TokenMatcher.match?(Empty, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Empty, line, context)
-        %{context_w_added_token | state: 30}
+        updated_context =
+          TokenMatcher.parse(Empty, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 30}
 
       true ->
         state_comment =
@@ -1579,45 +2846,98 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 31} = context) do
     cond do
       TokenMatcher.match?(EOF, line, context) ->
-        context_w_added_token = TokenMatcher.parse(EOF, line, context)
-        %{context_w_added_token | state: 41}
+        updated_context =
+          TokenMatcher.parse(EOF, line, context)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.end_rule(Rule)
+          |> AstBuilder.end_rule(Feature)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 41}
 
       TokenMatcher.match?(Empty, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Empty, line, context)
-        %{context_w_added_token | state: 31}
+        updated_context =
+          TokenMatcher.parse(Empty, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 31}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 33}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 33}
 
       TokenMatcher.match?(StepLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(StepLine, line, context)
-        %{context_w_added_token | state: 34}
+        updated_context =
+          TokenMatcher.parse(StepLine, line, context)
+          |> AstBuilder.start_rule(Step)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 34}
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 36}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 36}
 
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 30}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 30}
 
       TokenMatcher.match?(ExamplesLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ExamplesLine, line, context)
-        %{context_w_added_token | state: 37}
+        updated_context =
+          TokenMatcher.parse(ExamplesLine, line, context)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Examples)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 37}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 31}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 31}
 
       TokenMatcher.match?(RuleLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(RuleLine, line, context)
-        %{context_w_added_token | state: 22}
+        updated_context =
+          TokenMatcher.parse(RuleLine, line, context)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.end_rule(Rule)
+          |> AstBuilder.start_rule(Rule)
+          |> AstBuilder.start_rule(RuleHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 22}
 
       TokenMatcher.match?(Other, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Other, line, context)
-        %{context_w_added_token | state: 32}
+        updated_context =
+          TokenMatcher.parse(Other, line, context)
+          |> AstBuilder.start_rule(Description)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 32}
 
       true ->
         state_comment =
@@ -1642,41 +2962,98 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 32} = context) do
     cond do
       TokenMatcher.match?(EOF, line, context) ->
-        context_w_added_token = TokenMatcher.parse(EOF, line, context)
-        %{context_w_added_token | state: 41}
+        updated_context =
+          TokenMatcher.parse(EOF, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.end_rule(Rule)
+          |> AstBuilder.end_rule(Feature)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 41}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 33}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 33}
 
       TokenMatcher.match?(StepLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(StepLine, line, context)
-        %{context_w_added_token | state: 34}
+        updated_context =
+          TokenMatcher.parse(StepLine, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.start_rule(Step)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 34}
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 36}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 36}
 
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 30}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 30}
 
       TokenMatcher.match?(ExamplesLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ExamplesLine, line, context)
-        %{context_w_added_token | state: 37}
+        updated_context =
+          TokenMatcher.parse(ExamplesLine, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Examples)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 37}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 31}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 31}
 
       TokenMatcher.match?(RuleLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(RuleLine, line, context)
-        %{context_w_added_token | state: 22}
+        updated_context =
+          TokenMatcher.parse(RuleLine, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.end_rule(Rule)
+          |> AstBuilder.start_rule(Rule)
+          |> AstBuilder.start_rule(RuleHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 22}
 
       TokenMatcher.match?(Other, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Other, line, context)
-        %{context_w_added_token | state: 32}
+        updated_context =
+          TokenMatcher.parse(Other, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 32}
 
       true ->
         state_comment =
@@ -1700,41 +3077,90 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 33} = context) do
     cond do
       TokenMatcher.match?(EOF, line, context) ->
-        context_w_added_token = TokenMatcher.parse(EOF, line, context)
-        %{context_w_added_token | state: 41}
+        updated_context =
+          TokenMatcher.parse(EOF, line, context)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.end_rule(Rule)
+          |> AstBuilder.end_rule(Feature)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 41}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 33}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 33}
 
       TokenMatcher.match?(StepLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(StepLine, line, context)
-        %{context_w_added_token | state: 34}
+        updated_context =
+          TokenMatcher.parse(StepLine, line, context)
+          |> AstBuilder.start_rule(Step)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 34}
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 36}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 36}
 
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 30}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 30}
 
       TokenMatcher.match?(ExamplesLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ExamplesLine, line, context)
-        %{context_w_added_token | state: 37}
+        updated_context =
+          TokenMatcher.parse(ExamplesLine, line, context)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Examples)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 37}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 31}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 31}
 
       TokenMatcher.match?(RuleLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(RuleLine, line, context)
-        %{context_w_added_token | state: 22}
+        updated_context =
+          TokenMatcher.parse(RuleLine, line, context)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.end_rule(Rule)
+          |> AstBuilder.start_rule(Rule)
+          |> AstBuilder.start_rule(RuleHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 22}
 
       TokenMatcher.match?(Empty, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Empty, line, context)
-        %{context_w_added_token | state: 33}
+        updated_context =
+          TokenMatcher.parse(Empty, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 33}
 
       true ->
         state_comment =
@@ -1758,49 +3184,113 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 34} = context) do
     cond do
       TokenMatcher.match?(EOF, line, context) ->
-        context_w_added_token = TokenMatcher.parse(EOF, line, context)
-        %{context_w_added_token | state: 41}
+        updated_context =
+          TokenMatcher.parse(EOF, line, context)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.end_rule(Rule)
+          |> AstBuilder.end_rule(Feature)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 41}
 
       TokenMatcher.match?(TableRow, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TableRow, line, context)
-        %{context_w_added_token | state: 35}
+        updated_context =
+          TokenMatcher.parse(TableRow, line, context)
+          |> AstBuilder.start_rule(DataTable)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 35}
 
       TokenMatcher.match?(DocStringSeparator, line, context) ->
-        context_w_added_token = TokenMatcher.parse(DocStringSeparator, line, context)
-        %{context_w_added_token | state: 42}
+        updated_context =
+          TokenMatcher.parse(DocStringSeparator, line, context)
+          |> AstBuilder.start_rule(DocString)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 42}
 
       TokenMatcher.match?(StepLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(StepLine, line, context)
-        %{context_w_added_token | state: 34}
+        updated_context =
+          TokenMatcher.parse(StepLine, line, context)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.start_rule(Step)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 34}
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 36}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 36}
 
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 30}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 30}
 
       TokenMatcher.match?(ExamplesLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ExamplesLine, line, context)
-        %{context_w_added_token | state: 37}
+        updated_context =
+          TokenMatcher.parse(ExamplesLine, line, context)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Examples)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 37}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 31}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 31}
 
       TokenMatcher.match?(RuleLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(RuleLine, line, context)
-        %{context_w_added_token | state: 22}
+        updated_context =
+          TokenMatcher.parse(RuleLine, line, context)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.end_rule(Rule)
+          |> AstBuilder.start_rule(Rule)
+          |> AstBuilder.start_rule(RuleHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 22}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 34}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 34}
 
       TokenMatcher.match?(Empty, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Empty, line, context)
-        %{context_w_added_token | state: 34}
+        updated_context =
+          TokenMatcher.parse(Empty, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 34}
 
       true ->
         state_comment =
@@ -1826,45 +3316,111 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 35} = context) do
     cond do
       TokenMatcher.match?(EOF, line, context) ->
-        context_w_added_token = TokenMatcher.parse(EOF, line, context)
-        %{context_w_added_token | state: 41}
+        updated_context =
+          TokenMatcher.parse(EOF, line, context)
+          |> AstBuilder.end_rule(DataTable)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.end_rule(Rule)
+          |> AstBuilder.end_rule(Feature)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 41}
 
       TokenMatcher.match?(TableRow, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TableRow, line, context)
-        %{context_w_added_token | state: 35}
+        updated_context =
+          TokenMatcher.parse(TableRow, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 35}
 
       TokenMatcher.match?(StepLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(StepLine, line, context)
-        %{context_w_added_token | state: 34}
+        updated_context =
+          TokenMatcher.parse(StepLine, line, context)
+          |> AstBuilder.end_rule(DataTable)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.start_rule(Step)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 34}
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 36}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(DataTable)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 36}
 
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 30}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(DataTable)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 30}
 
       TokenMatcher.match?(ExamplesLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ExamplesLine, line, context)
-        %{context_w_added_token | state: 37}
+        updated_context =
+          TokenMatcher.parse(ExamplesLine, line, context)
+          |> AstBuilder.end_rule(DataTable)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Examples)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 37}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 31}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(DataTable)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 31}
 
       TokenMatcher.match?(RuleLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(RuleLine, line, context)
-        %{context_w_added_token | state: 22}
+        updated_context =
+          TokenMatcher.parse(RuleLine, line, context)
+          |> AstBuilder.end_rule(DataTable)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.end_rule(Rule)
+          |> AstBuilder.start_rule(Rule)
+          |> AstBuilder.start_rule(RuleHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 22}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 35}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 35}
 
       TokenMatcher.match?(Empty, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Empty, line, context)
-        %{context_w_added_token | state: 35}
+        updated_context =
+          TokenMatcher.parse(Empty, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 35}
 
       true ->
         state_comment =
@@ -1889,20 +3445,34 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 36} = context) do
     cond do
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 36}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 36}
 
       TokenMatcher.match?(ExamplesLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ExamplesLine, line, context)
-        %{context_w_added_token | state: 37}
+        updated_context =
+          TokenMatcher.parse(ExamplesLine, line, context)
+          |> AstBuilder.end_rule(Tags)
+          |> AstBuilder.start_rule(Examples)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 37}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 36}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 36}
 
       TokenMatcher.match?(Empty, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Empty, line, context)
-        %{context_w_added_token | state: 36}
+        updated_context =
+          TokenMatcher.parse(Empty, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 36}
 
       true ->
         state_comment =
@@ -1916,45 +3486,110 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 37} = context) do
     cond do
       TokenMatcher.match?(EOF, line, context) ->
-        context_w_added_token = TokenMatcher.parse(EOF, line, context)
-        %{context_w_added_token | state: 41}
+        updated_context =
+          TokenMatcher.parse(EOF, line, context)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.end_rule(Rule)
+          |> AstBuilder.end_rule(Feature)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 41}
 
       TokenMatcher.match?(Empty, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Empty, line, context)
-        %{context_w_added_token | state: 37}
+        updated_context =
+          TokenMatcher.parse(Empty, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 37}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 39}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 39}
 
       TokenMatcher.match?(TableRow, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TableRow, line, context)
-        %{context_w_added_token | state: 40}
+        updated_context =
+          TokenMatcher.parse(TableRow, line, context)
+          |> AstBuilder.start_rule(ExamplesTable)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 40}
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 36}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 36}
 
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 30}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 30}
 
       TokenMatcher.match?(ExamplesLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ExamplesLine, line, context)
-        %{context_w_added_token | state: 37}
+        updated_context =
+          TokenMatcher.parse(ExamplesLine, line, context)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Examples)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 37}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 31}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 31}
 
       TokenMatcher.match?(RuleLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(RuleLine, line, context)
-        %{context_w_added_token | state: 22}
+        updated_context =
+          TokenMatcher.parse(RuleLine, line, context)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.end_rule(Rule)
+          |> AstBuilder.start_rule(Rule)
+          |> AstBuilder.start_rule(RuleHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 22}
 
       TokenMatcher.match?(Other, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Other, line, context)
-        %{context_w_added_token | state: 38}
+        updated_context =
+          TokenMatcher.parse(Other, line, context)
+          |> AstBuilder.start_rule(Description)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 38}
 
       true ->
         state_comment =
@@ -1979,41 +3614,110 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 38} = context) do
     cond do
       TokenMatcher.match?(EOF, line, context) ->
-        context_w_added_token = TokenMatcher.parse(EOF, line, context)
-        %{context_w_added_token | state: 41}
+        updated_context =
+          TokenMatcher.parse(EOF, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.end_rule(Rule)
+          |> AstBuilder.end_rule(Feature)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 41}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 39}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 39}
 
       TokenMatcher.match?(TableRow, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TableRow, line, context)
-        %{context_w_added_token | state: 40}
+        updated_context =
+          TokenMatcher.parse(TableRow, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.start_rule(ExamplesTable)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 40}
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 36}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 36}
 
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 30}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 30}
 
       TokenMatcher.match?(ExamplesLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ExamplesLine, line, context)
-        %{context_w_added_token | state: 37}
+        updated_context =
+          TokenMatcher.parse(ExamplesLine, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Examples)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 37}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 31}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 31}
 
       TokenMatcher.match?(RuleLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(RuleLine, line, context)
-        %{context_w_added_token | state: 22}
+        updated_context =
+          TokenMatcher.parse(RuleLine, line, context)
+          |> AstBuilder.end_rule(Description)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.end_rule(Rule)
+          |> AstBuilder.start_rule(Rule)
+          |> AstBuilder.start_rule(RuleHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 22}
 
       TokenMatcher.match?(Other, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Other, line, context)
-        %{context_w_added_token | state: 38}
+        updated_context =
+          TokenMatcher.parse(Other, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 38}
 
       true ->
         state_comment =
@@ -2037,41 +3741,102 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 39} = context) do
     cond do
       TokenMatcher.match?(EOF, line, context) ->
-        context_w_added_token = TokenMatcher.parse(EOF, line, context)
-        %{context_w_added_token | state: 41}
+        updated_context =
+          TokenMatcher.parse(EOF, line, context)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.end_rule(Rule)
+          |> AstBuilder.end_rule(Feature)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 41}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 39}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 39}
 
       TokenMatcher.match?(TableRow, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TableRow, line, context)
-        %{context_w_added_token | state: 40}
+        updated_context =
+          TokenMatcher.parse(TableRow, line, context)
+          |> AstBuilder.start_rule(ExamplesTable)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 40}
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 36}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 36}
 
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 30}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 30}
 
       TokenMatcher.match?(ExamplesLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ExamplesLine, line, context)
-        %{context_w_added_token | state: 37}
+        updated_context =
+          TokenMatcher.parse(ExamplesLine, line, context)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Examples)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 37}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 31}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 31}
 
       TokenMatcher.match?(RuleLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(RuleLine, line, context)
-        %{context_w_added_token | state: 22}
+        updated_context =
+          TokenMatcher.parse(RuleLine, line, context)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.end_rule(Rule)
+          |> AstBuilder.start_rule(Rule)
+          |> AstBuilder.start_rule(RuleHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 22}
 
       TokenMatcher.match?(Empty, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Empty, line, context)
-        %{context_w_added_token | state: 39}
+        updated_context =
+          TokenMatcher.parse(Empty, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 39}
 
       true ->
         state_comment =
@@ -2095,41 +3860,107 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 40} = context) do
     cond do
       TokenMatcher.match?(EOF, line, context) ->
-        context_w_added_token = TokenMatcher.parse(EOF, line, context)
-        %{context_w_added_token | state: 41}
+        updated_context =
+          TokenMatcher.parse(EOF, line, context)
+          |> AstBuilder.end_rule(ExamplesTable)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.end_rule(Rule)
+          |> AstBuilder.end_rule(Feature)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 41}
 
       TokenMatcher.match?(TableRow, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TableRow, line, context)
-        %{context_w_added_token | state: 40}
+        updated_context =
+          TokenMatcher.parse(TableRow, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 40}
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 36}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(ExamplesTable)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 36}
 
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 30}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(ExamplesTable)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 30}
 
       TokenMatcher.match?(ExamplesLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ExamplesLine, line, context)
-        %{context_w_added_token | state: 37}
+        updated_context =
+          TokenMatcher.parse(ExamplesLine, line, context)
+          |> AstBuilder.end_rule(ExamplesTable)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Examples)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 37}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 31}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(ExamplesTable)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 31}
 
       TokenMatcher.match?(RuleLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(RuleLine, line, context)
-        %{context_w_added_token | state: 22}
+        updated_context =
+          TokenMatcher.parse(RuleLine, line, context)
+          |> AstBuilder.end_rule(ExamplesTable)
+          |> AstBuilder.end_rule(Examples)
+          |> AstBuilder.end_rule(ExamplesDefinition)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.end_rule(Rule)
+          |> AstBuilder.start_rule(Rule)
+          |> AstBuilder.start_rule(RuleHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 22}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 40}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 40}
 
       TokenMatcher.match?(Empty, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Empty, line, context)
-        %{context_w_added_token | state: 40}
+        updated_context =
+          TokenMatcher.parse(Empty, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 40}
 
       true ->
         state_comment =
@@ -2153,12 +3984,18 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 42} = context) do
     cond do
       TokenMatcher.match?(DocStringSeparator, line, context) ->
-        context_w_added_token = TokenMatcher.parse(DocStringSeparator, line, context)
-        %{context_w_added_token | state: 43}
+        updated_context =
+          TokenMatcher.parse(DocStringSeparator, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 43}
 
       TokenMatcher.match?(Other, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Other, line, context)
-        %{context_w_added_token | state: 42}
+        updated_context =
+          TokenMatcher.parse(Other, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 42}
 
       true ->
         state_comment =
@@ -2172,41 +4009,104 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 43} = context) do
     cond do
       TokenMatcher.match?(EOF, line, context) ->
-        context_w_added_token = TokenMatcher.parse(EOF, line, context)
-        %{context_w_added_token | state: 41}
+        updated_context =
+          TokenMatcher.parse(EOF, line, context)
+          |> AstBuilder.end_rule(DocString)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.end_rule(Rule)
+          |> AstBuilder.end_rule(Feature)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 41}
 
       TokenMatcher.match?(StepLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(StepLine, line, context)
-        %{context_w_added_token | state: 34}
+        updated_context =
+          TokenMatcher.parse(StepLine, line, context)
+          |> AstBuilder.end_rule(DocString)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.start_rule(Step)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 34}
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 36}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(DocString)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 36}
 
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 30}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(DocString)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 30}
 
       TokenMatcher.match?(ExamplesLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ExamplesLine, line, context)
-        %{context_w_added_token | state: 37}
+        updated_context =
+          TokenMatcher.parse(ExamplesLine, line, context)
+          |> AstBuilder.end_rule(DocString)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Examples)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 37}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 31}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(DocString)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 31}
 
       TokenMatcher.match?(RuleLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(RuleLine, line, context)
-        %{context_w_added_token | state: 22}
+        updated_context =
+          TokenMatcher.parse(RuleLine, line, context)
+          |> AstBuilder.end_rule(DocString)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.end_rule(Rule)
+          |> AstBuilder.start_rule(Rule)
+          |> AstBuilder.start_rule(RuleHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 22}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 43}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 43}
 
       TokenMatcher.match?(Empty, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Empty, line, context)
-        %{context_w_added_token | state: 43}
+        updated_context =
+          TokenMatcher.parse(Empty, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 43}
 
       true ->
         state_comment =
@@ -2230,12 +4130,18 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 44} = context) do
     cond do
       TokenMatcher.match?(DocStringSeparator, line, context) ->
-        context_w_added_token = TokenMatcher.parse(DocStringSeparator, line, context)
-        %{context_w_added_token | state: 45}
+        updated_context =
+          TokenMatcher.parse(DocStringSeparator, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 45}
 
       TokenMatcher.match?(Other, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Other, line, context)
-        %{context_w_added_token | state: 44}
+        updated_context =
+          TokenMatcher.parse(Other, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 44}
 
       true ->
         state_comment =
@@ -2249,32 +4155,77 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 45} = context) do
     cond do
       TokenMatcher.match?(EOF, line, context) ->
-        context_w_added_token = TokenMatcher.parse(EOF, line, context)
-        %{context_w_added_token | state: 41}
+        updated_context =
+          TokenMatcher.parse(EOF, line, context)
+          |> AstBuilder.end_rule(DocString)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.end_rule(Rule)
+          |> AstBuilder.end_rule(Feature)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 41}
 
       TokenMatcher.match?(StepLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(StepLine, line, context)
-        %{context_w_added_token | state: 28}
+        updated_context =
+          TokenMatcher.parse(StepLine, line, context)
+          |> AstBuilder.end_rule(DocString)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.start_rule(Step)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 28}
 
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 30}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(DocString)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 30}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 31}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(DocString)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 31}
 
       TokenMatcher.match?(RuleLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(RuleLine, line, context)
-        %{context_w_added_token | state: 22}
+        updated_context =
+          TokenMatcher.parse(RuleLine, line, context)
+          |> AstBuilder.end_rule(DocString)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.end_rule(Rule)
+          |> AstBuilder.start_rule(Rule)
+          |> AstBuilder.start_rule(RuleHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 22}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 45}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 45}
 
       TokenMatcher.match?(Empty, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Empty, line, context)
-        %{context_w_added_token | state: 45}
+        updated_context =
+          TokenMatcher.parse(Empty, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 45}
 
       true ->
         state_comment =
@@ -2297,12 +4248,18 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 46} = context) do
     cond do
       TokenMatcher.match?(DocStringSeparator, line, context) ->
-        context_w_added_token = TokenMatcher.parse(DocStringSeparator, line, context)
-        %{context_w_added_token | state: 47}
+        updated_context =
+          TokenMatcher.parse(DocStringSeparator, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 47}
 
       TokenMatcher.match?(Other, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Other, line, context)
-        %{context_w_added_token | state: 46}
+        updated_context =
+          TokenMatcher.parse(Other, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 46}
 
       true ->
         state_comment =
@@ -2316,41 +4273,102 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 47} = context) do
     cond do
       TokenMatcher.match?(EOF, line, context) ->
-        context_w_added_token = TokenMatcher.parse(EOF, line, context)
-        %{context_w_added_token | state: 41}
+        updated_context =
+          TokenMatcher.parse(EOF, line, context)
+          |> AstBuilder.end_rule(DocString)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.end_rule(Feature)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 41}
 
       TokenMatcher.match?(StepLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(StepLine, line, context)
-        %{context_w_added_token | state: 15}
+        updated_context =
+          TokenMatcher.parse(StepLine, line, context)
+          |> AstBuilder.end_rule(DocString)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.start_rule(Step)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 15}
 
       TokenMatcher.match?(TagLine, line, context) and
           lookahead?(0, line, context) |> Map.fetch!(:match?) == true ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 17}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(DocString)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 17}
 
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 11}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(DocString)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 11}
 
       TokenMatcher.match?(ExamplesLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ExamplesLine, line, context)
-        %{context_w_added_token | state: 18}
+        updated_context =
+          TokenMatcher.parse(ExamplesLine, line, context)
+          |> AstBuilder.end_rule(DocString)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.start_rule(ExamplesDefinition)
+          |> AstBuilder.start_rule(Examples)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 18}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 12}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(DocString)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 12}
 
       TokenMatcher.match?(RuleLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(RuleLine, line, context)
-        %{context_w_added_token | state: 22}
+        updated_context =
+          TokenMatcher.parse(RuleLine, line, context)
+          |> AstBuilder.end_rule(DocString)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Scenario)
+          |> AstBuilder.end_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Rule)
+          |> AstBuilder.start_rule(RuleHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 22}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 47}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 47}
 
       TokenMatcher.match?(Empty, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Empty, line, context)
-        %{context_w_added_token | state: 47}
+        updated_context =
+          TokenMatcher.parse(Empty, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 47}
 
       true ->
         state_comment =
@@ -2374,12 +4392,18 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 48} = context) do
     cond do
       TokenMatcher.match?(DocStringSeparator, line, context) ->
-        context_w_added_token = TokenMatcher.parse(DocStringSeparator, line, context)
-        %{context_w_added_token | state: 49}
+        updated_context =
+          TokenMatcher.parse(DocStringSeparator, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 49}
 
       TokenMatcher.match?(Other, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Other, line, context)
-        %{context_w_added_token | state: 48}
+        updated_context =
+          TokenMatcher.parse(Other, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 48}
 
       true ->
         state_comment =
@@ -2393,32 +4417,75 @@ defmodule ExGherkin.Parser do
   defp match_token(%Line{} = line, %ParserContext{state: 49} = context) do
     cond do
       TokenMatcher.match?(EOF, line, context) ->
-        context_w_added_token = TokenMatcher.parse(EOF, line, context)
-        %{context_w_added_token | state: 41}
+        updated_context =
+          TokenMatcher.parse(EOF, line, context)
+          |> AstBuilder.end_rule(DocString)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.end_rule(Feature)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 41}
 
       TokenMatcher.match?(StepLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(StepLine, line, context)
-        %{context_w_added_token | state: 9}
+        updated_context =
+          TokenMatcher.parse(StepLine, line, context)
+          |> AstBuilder.end_rule(DocString)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.start_rule(Step)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 9}
 
       TokenMatcher.match?(TagLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(TagLine, line, context)
-        %{context_w_added_token | state: 11}
+        updated_context =
+          TokenMatcher.parse(TagLine, line, context)
+          |> AstBuilder.end_rule(DocString)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Tags)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 11}
 
       TokenMatcher.match?(ScenarioLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(ScenarioLine, line, context)
-        %{context_w_added_token | state: 12}
+        updated_context =
+          TokenMatcher.parse(ScenarioLine, line, context)
+          |> AstBuilder.end_rule(DocString)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.start_rule(ScenarioDefinition)
+          |> AstBuilder.start_rule(Scenario)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 12}
 
       TokenMatcher.match?(RuleLine, line, context) ->
-        context_w_added_token = TokenMatcher.parse(RuleLine, line, context)
-        %{context_w_added_token | state: 22}
+        updated_context =
+          TokenMatcher.parse(RuleLine, line, context)
+          |> AstBuilder.end_rule(DocString)
+          |> AstBuilder.end_rule(Step)
+          |> AstBuilder.end_rule(Background)
+          |> AstBuilder.start_rule(Rule)
+          |> AstBuilder.start_rule(RuleHeader)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 22}
 
       TokenMatcher.match?(Comment, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Comment, line, context)
-        %{context_w_added_token | state: 49}
+        updated_context =
+          TokenMatcher.parse(Comment, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 49}
 
       TokenMatcher.match?(Empty, line, context) ->
-        context_w_added_token = TokenMatcher.parse(Empty, line, context)
-        %{context_w_added_token | state: 49}
+        updated_context =
+          TokenMatcher.parse(Empty, line, context)
+          |> AstBuilder.build()
+
+        %{updated_context | state: 49}
 
       true ->
         state_comment =
