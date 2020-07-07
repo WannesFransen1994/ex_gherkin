@@ -22,6 +22,8 @@ end
 defmodule ExGherkin.Parser do
   alias ExGherkin.{ParserContext, TokenMatcher, Token, Line}
 
+  def parse(text) when is_binary(text), do: text |> String.split(~r/\R/) |> parse
+
   def parse(lines) when is_list(lines) do
     {:ok, default_lexicon} = ExGherkin.Gherkin.Lexicon.load_lang("en")
 
