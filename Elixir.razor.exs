@@ -18,7 +18,7 @@
                 # What is the exact responsibility of this func? is the token added here?
                 #   Don't put the token immediately in the list but do something else with it here?
                 *@
-                @:AstBuilder.build();
+                @:AstBuilder.build() |>
             break;
     }
 }
@@ -83,6 +83,8 @@ defmodule ExGherkin.@Model.ParserClassName do
     match_token(current_line, new_context) |> parse_recursive()
   end
 
+  defp update_next_state(context, next) when is_integer(next), do: %{context | state: next}
+
 @foreach(var state in Model.States.Values.Where(s => !s.IsEndState)){
 <text>
   defp match_token(%Line{} = line, %ParserContext{state: @state.Id} = context) do
@@ -96,13 +98,11 @@ defmodule ExGherkin.@Model.ParserClassName do
             <text>TokenMatcher.match?(@transition.TokenType , line, context) -> </text>
           }
           <text>
-            updated_context =
-              TokenMatcher.parse(@transition.TokenType , line, context)
-              |>
+              TokenMatcher.parse(@transition.TokenType , line, context) |>
           </text>
           foreach(var production in transition.Productions){ @CallProduction(production) }
           <text>
-          %{updated_context | state: @transition.TargetState}
+          update_next_state(@transition.TargetState)
           </text>
         }
       @* # Code below is basically called when no other token matches.  *@
