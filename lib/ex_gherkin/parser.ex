@@ -6,8 +6,9 @@
 defmodule ExGherkin.ParserContext do
   @enforce_keys [:lines, :lexicon]
   defstruct [
-    :smthing_with_ast_builder?,
+    :ast_builder,
     :lines,
+    :current_token,
     language: "en",
     lexicon: nil,
     reverse_queue: [],
@@ -31,13 +32,18 @@ defmodule ExGherkin.Parser do
       Enum.with_index(lines, 1)
       |> Enum.map(fn {text, index} -> struct!(Line, content: text, index: index) end)
 
-    parser_context = struct!(ParserContext, lines: lines_structs, lexicon: default_lexicon)
-    parse_recursive(parser_context)
+    struct!(ParserContext,
+      lines: lines_structs,
+      lexicon: default_lexicon,
+      ast_builder: AstBuilder.new()
+    )
+    |> AstBuilder.start_rule(GherkinDocument)
+    |> parse_recursive()
   end
 
   defp parse_recursive(%ParserContext{reverse_queue: [%Token{matched_type: EOF} | _]} = c) do
     ordened_tokens = Enum.reverse(c.reverse_queue)
-    %{c | tokens: ordened_tokens, reverse_queue: []}
+    %{c | tokens: ordened_tokens, reverse_queue: []} |> AstBuilder.end_rule(GherkinDocument)
   end
 
   defp parse_recursive(%ParserContext{lines: [], reverse_queue: rt} = c) do

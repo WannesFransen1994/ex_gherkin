@@ -77,12 +77,12 @@ defmodule ExGherkin.TokenMatcher do
 
   def parse(type, %Line{} = l, context) when type in [EOF, Empty] do
     token = struct!(Token, line: l, matched_type: type)
-    %{context | reverse_queue: [token | context.reverse_queue]}
+    finalize_parse(context, token)
   end
 
   def parse(Comment, %Line{} = l, context) do
     token = struct!(Token, line: l, matched_type: Comment, matched_text: l.content)
-    %{context | reverse_queue: [token | context.reverse_queue]}
+    finalize_parse(context, token)
   end
 
   def parse(TagLine, l, context), do: __MODULE__.TagLineParser.parse(TagLine, l, context)
@@ -106,7 +106,7 @@ defmodule ExGherkin.TokenMatcher do
     ]
 
     token = struct!(Token, opts)
-    %{context | reverse_queue: [token | context.reverse_queue]}
+    finalize_parse(context, token)
   end
 
   def parse(StepLine, %Line{content: c} = l, context) do
@@ -124,7 +124,7 @@ defmodule ExGherkin.TokenMatcher do
     ]
 
     token = struct!(Token, opts)
-    %{context | reverse_queue: [token | context.reverse_queue]}
+    finalize_parse(context, token)
   end
 
   def parse(DocStringSeparator, %Line{} = l, %PC{docstring_sep: nil} = ctext) do
@@ -149,7 +149,7 @@ defmodule ExGherkin.TokenMatcher do
     token = struct!(Token, opts)
 
     context_w_sep_i = %{ctext | docstring_sep: sep, docstring_indent: String.length(indent)}
-    %{context_w_sep_i | reverse_queue: [token | ctext.reverse_queue]}
+    finalize_parse(context_w_sep_i, token)
   end
 
   def parse(DocStringSeparator, %Line{} = l, %PC{docstring_sep: sep} = ctext)
@@ -168,7 +168,7 @@ defmodule ExGherkin.TokenMatcher do
     token = struct!(Token, opts)
 
     context_w_sep_i = %{ctext | docstring_sep: nil, docstring_indent: nil}
-    %{context_w_sep_i | reverse_queue: [token | ctext.reverse_queue]}
+    finalize_parse(context_w_sep_i, token)
   end
 
   def parse(Language, %Line{content: c} = l, context) do
@@ -177,17 +177,24 @@ defmodule ExGherkin.TokenMatcher do
     i = String.length(c) - String.length(String.trim_leading(c)) + 1
     {:ok, new_lexicon} = ExGherkin.Gherkin.Lexicon.load_lang(lang)
     token = struct!(Token, line: l, matched_type: Language, matched_text: lang, indent: i)
-    %{context | reverse_queue: [token | context.reverse_queue], lexicon: new_lexicon}
+    context |> update_lexicon(new_lexicon) |> finalize_parse(token)
   end
 
   def parse(Other, %Line{content: c} = l, %PC{docstring_indent: i, docstring_sep: s} = pc) do
     indent_to_remove = i || 0
     cleaned_txt = c |> trim_x(" ", indent_to_remove) |> unescape_docstring(s)
     token = struct!(Token, line: l, matched_type: Other, matched_text: cleaned_txt)
-    %{pc | reverse_queue: [token | pc.reverse_queue]}
+    pc |> add_token(token) |> mark_token_as_active(token)
   end
 
   defp unescape_docstring(t, @doc_sep), do: String.replace(t, "\\\"\\\"\\\"", @doc_sep)
   defp unescape_docstring(t, @doc_sep_alt), do: String.replace(t, "\\`\\`\\`", @doc_sep_alt)
   defp unescape_docstring(t, nil), do: t
+
+  defp add_token(pc, token), do: %{pc | reverse_queue: [token | pc.reverse_queue]}
+  defp mark_token_as_active(pc, token), do: %{pc | current_token: token}
+  defp update_lexicon(pc, new_lexicon), do: %{pc | lexicon: new_lexicon}
+
+  def finalize_parse(context, token),
+    do: context |> add_token(token) |> mark_token_as_active(token)
 end

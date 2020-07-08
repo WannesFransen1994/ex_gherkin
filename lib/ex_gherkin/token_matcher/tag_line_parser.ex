@@ -40,6 +40,6 @@ defmodule ExGherkin.TokenMatcher.TagLineParser do
     new_token =
       struct!(Token, line: l, indent: new_indent, matched_type: TagLine, items: unfiltered_tags)
 
-    %{context | reverse_queue: [new_token | context.reverse_queue]}
+    ExGherkin.TokenMatcher.finalize_parse(context, new_token)
   end
 end

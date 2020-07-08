@@ -56,7 +56,9 @@ defmodule ExGherkin do
 
   # Just writing some gibberish which i think is from the java implementation
   def pr(opts \\ []),
-    do: [Path.join([File.cwd!(), "testdata", "good", "tags.feature"])] |> gherkin_from_paths(opts)
+    do:
+      [Path.join([File.cwd!(), "testdata", "good", "minimal-example.feature"])]
+      |> gherkin_from_paths(opts)
 
   def gherkin_from_paths(paths, opts) when is_list(paths) do
     # this normally gives a stream back of envelopes, we'll create the envelopes beforehand
@@ -102,9 +104,6 @@ defmodule ExGherkin do
 
     # returns a list of envelopes/messages?
 
-    require IEx
-    IEx.pry()
-
     meta_info = %{messages: [], gherkin_doc: nil}
 
     meta_info
@@ -128,6 +127,7 @@ defmodule ExGherkin do
       %{meta | gherkin_doc: gherkin_doc, messages: [%Envelope{message: gherkin_doc} | m]}
     else
       {:has_no_ast_opt?, true} ->
+        Logger.warn("no ast opt")
         meta
 
       {:gherkin_doc_present?, true} ->

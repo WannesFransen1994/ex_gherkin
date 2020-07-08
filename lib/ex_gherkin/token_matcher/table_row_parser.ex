@@ -17,7 +17,7 @@ defmodule ExGherkin.TokenMatcher.TableRowParser do
     new_token =
       struct!(Token, matched_type: TableRow, line: l, items: acc, indent: meta.token_col)
 
-    %{context | reverse_queue: [new_token | context.reverse_queue]}
+    ExGherkin.TokenMatcher.finalize_parse(context, new_token)
   end
 
   # line has ended
