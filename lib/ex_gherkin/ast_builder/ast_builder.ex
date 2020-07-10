@@ -1,7 +1,9 @@
 defmodule ExGherkin.AstBuilder do
-  alias ExGherkin.{ParserContext, AstNode}
+  alias ExGherkin.{ParserContext, AstNode, Token}
+  alias CucumberMessages.GherkinDocument.Comment
   @me __MODULE__
 
+  require IEx
   require Logger
 
   defstruct stack: %Stack{}, gherkin_doc: nil
@@ -24,20 +26,91 @@ defmodule ExGherkin.AstBuilder do
     IO.puts("END_RULE\t#{context.state}\t#{type}")
 
     {%AstNode{} = to_be_transformed, %Stack{} = stack} = Stack.pop(s)
-    _transformed_node = transform_node(to_be_transformed)
+    transformed_node = transform_node(to_be_transformed)
     {%AstNode{} = current_node, %Stack{} = new_stack} = Stack.pop(stack)
     # add transformed node to current node with ruletype? line 75 in gherk doc builder
-    updated_builder = %{builder | stack: Stack.push(new_stack, current_node)}
+    # NOTE: using token type here, in java it uses the enum ordinal to get the
+    #  Rule type, but doesn't this always match...? Just passing token type, see what happens
+    updated_node = AstNode.add_subitem(current_node, transformed_node.rule_type, transformed_node)
+    updated_builder = %{builder | stack: Stack.push(new_stack, updated_node)}
     %{context | ast_builder: updated_builder}
   end
 
-  def build(context) do
-    # TODO: see what I actually should do here
-    context
+  def build(%ParserContext{ast_builder: %@me{} = builder} = context) do
+    token = context.current_token
+
+    case token.matched_type do
+      Comment ->
+        loc = Token.get_location(token)
+        comment_message = %Comment{location: loc, text: token.line.content}
+        updated_comments = [comment_message | builder.gherkin_doc.comments]
+        updated_gherkin_doc = %{builder.gherkin_doc | comments: updated_comments}
+        updated_builder = %{builder | gherkin_doc: updated_gherkin_doc}
+        %{context | ast_builder: updated_builder}
+
+      other_type ->
+        {%AstNode{} = current, %Stack{} = temp_stack} = Stack.pop(builder.stack)
+        updated_node = AstNode.add_subitem(current, other_type, token)
+        updated_builder = %{builder | stack: Stack.push(temp_stack, updated_node)}
+        %{context | ast_builder: updated_builder}
+    end
   end
 
-  defp transform_node(node) do
-    # TODO: actually transform
+  defp transform_node(%AstNode{rule_type: Step} = node) do
+    raise "#{node.rule_type} implement me"
     node
   end
+
+  defp transform_node(%AstNode{rule_type: DocString} = node) do
+    raise "#{node.rule_type} implement me"
+    node
+  end
+
+  defp transform_node(%AstNode{rule_type: DataTable} = node) do
+    raise "#{node.rule_type} implement me"
+    node
+  end
+
+  defp transform_node(%AstNode{rule_type: Background} = node) do
+    raise "#{node.rule_type} implement me"
+    node
+  end
+
+  defp transform_node(%AstNode{rule_type: ScenarioDefinition} = node) do
+    raise "#{node.rule_type} implement me"
+    node
+  end
+
+  defp transform_node(%AstNode{rule_type: ExamplesDefinition} = node) do
+    raise "#{node.rule_type} implement me"
+    node
+  end
+
+  defp transform_node(%AstNode{rule_type: ExamplesTable} = node) do
+    raise "#{node.rule_type} implement me"
+    node
+  end
+
+  defp transform_node(%AstNode{rule_type: Description} = node) do
+    raise "#{node.rule_type} implement me"
+    node
+  end
+
+  defp transform_node(%AstNode{rule_type: Feature} = node) do
+    raise "#{node.rule_type} implement me"
+    node
+  end
+
+  defp transform_node(%AstNode{rule_type: Rule} = node) do
+    raise "#{node.rule_type} implement me"
+    node
+  end
+
+  defp transform_node(%AstNode{rule_type: GherkinDocument} = node) do
+    # TODO: actually transform
+    raise "#{node.rule_type} implement me"
+    node
+  end
+
+  defp transform_node(node), do: node
 end

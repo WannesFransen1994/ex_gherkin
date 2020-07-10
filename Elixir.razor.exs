@@ -35,6 +35,32 @@
 @helper matchToken(TokenType tokenType)
 {<text>match_@(tokenType)(context, token)</text>}
 
+defmodule ExGherkin.TokenTypes do
+  @@token_types [
+    None,
+    @foreach(var rule in Model.RuleSet.TokenRules){
+    <text>@rule.Name.Replace("#", ""),</text>
+    }
+  ]
+  def get_ordinal(type), do: Enum.find_index @@token_types, &( &1 == type )
+end
+
+defmodule ExGherkin.RuleTypes do
+  @@rule_types [
+    None,
+    @foreach(var rule in Model.RuleSet.Where(r => !r.TempRule)){
+    <text>@rule.Name.Replace("#", ""),</text>
+    }
+  ]
+
+  def get_ruletype_for_tokentype(type) do
+    index = ExGherkin.TokenTypes.get_ordinal type
+    Enum.at(@@rule_types, index)
+  end
+end
+
+
+
 defmodule ExGherkin.ParserContext do
   @@enforce_keys [:lines, :lexicon]
   defstruct [

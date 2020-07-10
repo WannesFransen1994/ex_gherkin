@@ -3,6 +3,70 @@
 #       Changes to this file may cause incorrect behavior and will be lost if
 #       the code is regenerated.
 
+defmodule ExGherkin.TokenTypes do
+  @token_types [
+    None,
+    EOF,
+    Empty,
+    Comment,
+    TagLine,
+    FeatureLine,
+    RuleLine,
+    BackgroundLine,
+    ScenarioLine,
+    ExamplesLine,
+    StepLine,
+    DocStringSeparator,
+    TableRow,
+    Language,
+    Other
+  ]
+  def get_ordinal(type), do: Enum.find_index(@token_types, &(&1 == type))
+end
+
+defmodule ExGherkin.RuleTypes do
+  @rule_types [
+    None,
+    EOF,
+    Empty,
+    Comment,
+    TagLine,
+    FeatureLine,
+    RuleLine,
+    BackgroundLine,
+    ScenarioLine,
+    ExamplesLine,
+    StepLine,
+    DocStringSeparator,
+    TableRow,
+    Language,
+    Other,
+    GherkinDocument,
+    Feature,
+    FeatureHeader,
+    Rule,
+    RuleHeader,
+    Background,
+    ScenarioDefinition,
+    Scenario,
+    ExamplesDefinition,
+    Examples,
+    ExamplesTable,
+    Step,
+    StepArg,
+    DataTable,
+    DocString,
+    Tags,
+    DescriptionHelper,
+    Description
+  ]
+
+  def get_ruletype_for_tokentype(type) do
+    index = ExGherkin.TokenTypes.get_ordinal(type)
+    Enum.at(@rule_types, index)
+  end
+end
+
 defmodule ExGherkin.ParserContext do
   @enforce_keys [:lines, :lexicon]
   defstruct [
