@@ -34,3 +34,4 @@ erl_crash.dump
 cp_from_vm.sh
 cp_to_vm.sh
 DIFF_ME
+.tool-versions
