@@ -1,6 +1,8 @@
 defmodule ExGherkin.AstBuilder do
-  alias ExGherkin.{ParserContext, AstNode, Token}
+  alias ExGherkin.{ParserContext, AstNode, Token, RuleTypes, TokenTypes}
   alias CucumberMessages.GherkinDocument.Comment
+  alias CucumberMessages.GherkinDocument.Feature.Tag, as: MessageTag
+
   @me __MODULE__
 
   require IEx
@@ -57,7 +59,7 @@ defmodule ExGherkin.AstBuilder do
   end
 
   defp transform_node(%AstNode{rule_type: Step} = node) do
-    raise "#{node.rule_type} implement me"
+    # raise "#{node.rule_type} implement me"
     node
   end
 
@@ -113,4 +115,17 @@ defmodule ExGherkin.AstBuilder do
   end
 
   defp transform_node(node), do: node
+
+  defp get_tags(node) do
+    with tag_node when not tag_node == nil <-
+           AstNode.get_single(node, RuleTypes.Tags, %AstNode{rule_type: RuleTypes.None}) do
+      new_tokens_list = AstNode.get_tokens(tag_node, TokenTypes.TagLine)
+
+      Enum.reduce(new_tokens_list, [], fn token, token_acc ->
+        token_acc ++ Enum.reduce(token.items, [], fn tag_item, tag_acc -> tag_acc ++ [MessageTag.new] end)
+      end)
+    else
+      nil -> []
+    end
+  end
 end
