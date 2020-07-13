@@ -35,4 +35,8 @@ defmodule ExGherkin.AstNode do
     rule_type = RuleTypes.get_ruletype_for_tokentype(token_type)
     get_single(node, rule_type, %ExGherkin.Token{})
   end
+
+  def get_tokens(%AstNode{} = node, token_type) do
+    get_items(node, RuleTypes.get_ruletype_for_tokentype(token_type))
+  end
 end
