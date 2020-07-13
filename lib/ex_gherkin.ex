@@ -21,6 +21,10 @@ defmodule ExGherkin do
   end
 
   def run_only_during_dev() do
+    # :debugger.start()
+    # :int.ni(ExGherkin.Parser)
+    # :int.break(ExGherkin.Parser, 93)
+    # :int.break(ExGherkin.Parser, 105)
     execute_good_test_files(list_good_testdata(), nil)
   end
 
@@ -64,6 +68,8 @@ defmodule ExGherkin do
     # this normally gives a stream back of envelopes, we'll create the envelopes beforehand
     Enum.map(paths, fn p ->
       {:ok, envelope_w_source} = create_source_envelope(p, opts)
+      require IEx
+      IEx.pry()
       # envelopeFromPath is the func called in Gherkin.java
 
       # After which you call a parsermessagestream func with 1 envelope argument.

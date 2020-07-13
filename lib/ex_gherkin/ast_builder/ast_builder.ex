@@ -4,6 +4,10 @@ defmodule ExGherkin.AstBuilder do
   alias CucumberMessages.GherkinDocument.Feature.Tag, as: MessageTag
   alias CucumberMessages.GherkinDocument.Feature.Scenario, as: MessageScenario
   alias CucumberMessages.Location
+  alias CucumberMessages.GherkinDocument.Feature.Step, as: StepMessage
+  alias CucumberMessages.GherkinDocument.Feature.Step.DataTable, as: DataTableMessage
+  alias CucumberMessages.GherkinDocument.Feature.TableRow, as: TableRowMessage
+  alias CucumberMessages.GherkinDocument.Feature.TableRow.TableCell, as: TableCellMessage
 
   @me __MODULE__
 
@@ -30,13 +34,18 @@ defmodule ExGherkin.AstBuilder do
     IO.puts("END_RULE\t#{context.state}\t#{type}")
 
     {%AstNode{} = to_be_transformed, %Stack{} = stack} = Stack.pop(s)
+    # transformed_node = to_be_transformed
+    # Logger.warn("YOU REALLY NEED TO IMPLEMENT THIS")
     transformed_node = transform_node(to_be_transformed)
     {%AstNode{} = current_node, %Stack{} = new_stack} = Stack.pop(stack)
     # add transformed node to current node with ruletype? line 75 in gherk doc builder
     # NOTE: using token type here, in java it uses the enum ordinal to get the
     #  Rule type, but doesn't this always match...? Just passing token type, see what happens
-    updated_node = AstNode.add_subitem(current_node, transformed_node.rule_type, transformed_node)
+    updated_node =
+      AstNode.add_subitem(current_node, to_be_transformed.rule_type, transformed_node)
+
     updated_builder = %{builder | stack: Stack.push(new_stack, updated_node)}
+    if context.state in [15, 41], do: IEx.pry()
     %{context | ast_builder: updated_builder}
   end
 
@@ -61,8 +70,17 @@ defmodule ExGherkin.AstBuilder do
   end
 
   defp transform_node(%AstNode{rule_type: Step} = node) do
-    # raise "#{node.rule_type} implement me"
-    node
+    # TODO: ID GENERATOR
+    token = AstNode.get_token(node, StepLine)
+
+    %StepMessage{
+      id: "0",
+      keyword: token.matched_keyword,
+      location: Token.get_location(token),
+      text: token.matched_text
+    }
+    |> add_datatable_to_step_message(AstNode.get_single(node, DataTable, nil))
+    |> add_docstring_to_step_message(AstNode.get_single(node, DocString, nil))
   end
 
   defp transform_node(%AstNode{rule_type: DocString} = node) do
@@ -71,8 +89,10 @@ defmodule ExGherkin.AstBuilder do
   end
 
   defp transform_node(%AstNode{rule_type: DataTable} = node) do
-    raise "#{node.rule_type} implement me"
-    node
+    rows = get_table_rows(node)
+    location = rows |> List.first() |> Map.fetch!(:location)
+
+    %DataTableMessage{location: location, rows: rows}
   end
 
   defp transform_node(%AstNode{rule_type: Background} = node) do
@@ -153,6 +173,34 @@ defmodule ExGherkin.AstBuilder do
     AstNode.get_single(node, Description, nil)
   end
 
+  defp get_table_rows(%AstNode{} = node) do
+    result =
+      Enum.map(
+        ExGherkin.AstNode.get_tokens(node, TableRow),
+        fn %Token{} = t ->
+          # TODO: Replace ID
+          %TableRowMessage{id: "0", location: Token.get_location(t), cells: get_cells(t)}
+        end
+      )
+      |> Enum.reverse()
+
+    # TODO: ensure_cell_count
+    result
+  end
+
+  # defp ensure_cell_count(table_rows) when is_list(table_rows) do
+  #   # TODO: Implement
+  # end
+
+  defp get_cells(%Token{items: items} = token) do
+    base_location = %CucumberMessages.Location{} = Token.get_location(token)
+
+    Enum.map(items, fn item ->
+      updated_location = %{base_location | column: item.column}
+      %TableCellMessage{location: updated_location, value: item.content}
+    end)
+  end
+
   defp get_tags(node) do
     case AstNode.get_single(node, Tags, %AstNode{rule_type: None}) do
       nil ->
@@ -172,4 +220,9 @@ defmodule ExGherkin.AstBuilder do
         end)
     end
   end
+
+  defp add_datatable_to_step_message(%StepMessage{} = m, nil), do: m
+  defp add_datatable_to_step_message(%StepMessage{} = m, d), do: %{m | argument: {:data_table, d}}
+  defp add_docstring_to_step_message(%StepMessage{} = m, nil), do: m
+  defp add_docstring_to_step_message(%StepMessage{} = m, d), do: %{m | argument: {:doc_string, d}}
 end
