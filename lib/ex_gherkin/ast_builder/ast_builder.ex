@@ -26,6 +26,9 @@ defmodule ExGherkin.AstBuilder do
     IO.puts("END_RULE\t#{context.state}\t#{type}")
 
     {%AstNode{} = to_be_transformed, %Stack{} = stack} = Stack.pop(s)
+    # transformed_node = to_be_transformed
+    # Logger.warn("YOU REALLY NEED TO IMPLEMENT THIS")
+    # if context.state in [3, 12, 15, 41], do: IEx.pry()
     transformed_node = transform_node(to_be_transformed)
     {%AstNode{} = current_node, %Stack{} = new_stack} = Stack.pop(stack)
     # add transformed node to current node with ruletype? line 75 in gherk doc builder
@@ -56,8 +59,39 @@ defmodule ExGherkin.AstBuilder do
     end
   end
 
-  defp transform_node(%AstNode{rule_type: Step} = node) do
-    raise "#{node.rule_type} implement me"
+  alias CucumberMessages.GherkinDocument.Feature.Step, as: StepMessage
+  alias CucumberMessages.GherkinDocument.Feature.Step.DataTable, as: DataTableMessage
+
+  defp transform_node(%AstNode{rule_type: Step = rtype} = node) do
+    # TODO: ID GENERATOR
+    token = AstNode.get_token(node, StepLine)
+    loc = Token.get_location(token)
+
+    step = %StepMessage{
+      id: 0,
+      keyword: token.matched_keyword,
+      location: loc,
+      text: token.matched_text
+    }
+
+    data_table =
+      case AstNode.get_single(node, DataTable, nil) do
+        nil ->
+          nil
+
+        raw_data ->
+          IEx.pry()
+          %DataTableMessage{location: -1, rows: []}
+      end
+
+    # node_with_possible_data_table = case data_table do
+    #   nil -> node
+    #   data -> %{step | }
+    # end
+
+    require IEx
+    IEx.pry()
+    # raise "#{node.rule_type} implement me"
     node
   end
 
@@ -67,6 +101,8 @@ defmodule ExGherkin.AstBuilder do
   end
 
   defp transform_node(%AstNode{rule_type: DataTable} = node) do
+    rows = get_table_rows(node)
+
     raise "#{node.rule_type} implement me"
     node
   end
@@ -113,4 +149,9 @@ defmodule ExGherkin.AstBuilder do
   end
 
   defp transform_node(node), do: node
+
+  defp get_table_rows(%AstNode{} = node) do
+    require IEx
+    IEx.pry()
+  end
 end
