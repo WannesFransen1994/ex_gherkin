@@ -1,7 +1,9 @@
 defmodule ExGherkin.AstBuilder do
-  alias ExGherkin.{ParserContext, AstNode, Token, RuleTypes, TokenTypes}
+  alias ExGherkin.{ParserContext, AstNode, Token}
   alias CucumberMessages.GherkinDocument.Comment
   alias CucumberMessages.GherkinDocument.Feature.Tag, as: MessageTag
+  alias CucumberMessages.GherkinDocument.Feature.Scenario, as: MessageScenario
+  alias CucumberMessages.Location
 
   @me __MODULE__
 
@@ -79,8 +81,24 @@ defmodule ExGherkin.AstBuilder do
   end
 
   defp transform_node(%AstNode{rule_type: ScenarioDefinition} = node) do
-    raise "#{node.rule_type} implement me"
-    node
+    tags = get_tags(node)
+    scenario_node = AstNode.get_single(node, Scenario, nil)
+    scenario_line = AstNode.get_token(scenario_node, ScenarioLine)
+    description = get_description(scenario_node)
+    steps = get_steps(scenario_node)
+    example_list = AstNode.get_items(scenario_node, ExamplesDefinition)
+    loc = get_location(scenario_line, 0)
+    # TODO: Generate ID
+    %MessageScenario{
+      description: description,
+      id: 0,
+      location: loc,
+      keyword: scenario_line.matched_keyword,
+      name: scenario_line.matched_text,
+      tags: tags,
+      steps: steps,
+      examples: example_list
+    }
   end
 
   defp transform_node(%AstNode{rule_type: ExamplesDefinition} = node) do
@@ -116,16 +134,42 @@ defmodule ExGherkin.AstBuilder do
 
   defp transform_node(node), do: node
 
-  defp get_tags(node) do
-    with tag_node when not tag_node == nil <-
-           AstNode.get_single(node, RuleTypes.Tags, %AstNode{rule_type: RuleTypes.None}) do
-      new_tokens_list = AstNode.get_tokens(tag_node, TokenTypes.TagLine)
+  defp get_location(%Token{} = token, column) do
+    index =
+      case column do
+        0 -> token.indent
+        other -> other
+      end
 
-      Enum.reduce(new_tokens_list, [], fn token, token_acc ->
-        token_acc ++ Enum.reduce(token.items, [], fn tag_item, tag_acc -> tag_acc ++ [MessageTag.new] end)
-      end)
-    else
-      nil -> []
+    line = Token.get_location(token).line
+    %Location{line: line, column: index}
+  end
+
+  defp get_steps(node) do
+    AstNode.get_items(node, Step)
+  end
+
+  defp get_description(node) do
+    AstNode.get_single(node, Description, nil)
+  end
+
+  defp get_tags(node) do
+    case AstNode.get_single(node, Tags, %AstNode{rule_type: None}) do
+      nil ->
+        []
+
+      tag_node ->
+        new_tokens_list = AstNode.get_tokens(tag_node, TagLine)
+
+        Enum.reduce(new_tokens_list, [], fn token, token_acc ->
+          token_acc ++
+            Enum.reduce(token.items, [], fn tag_item, tag_acc ->
+              loc = get_location(token, tag_item.column)
+              # TODO: Generate ID
+              message_tag = %MessageTag{location: loc, name: tag_item.name, id: 0}
+              tag_acc ++ [message_tag]
+            end)
+        end)
     end
   end
 end

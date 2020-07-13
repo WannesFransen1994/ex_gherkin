@@ -25,8 +25,11 @@ defmodule ExGherkin.AstNode do
 
   def get_items(%AstNode{subitems: subitems}, rule_type) do
     case Map.fetch(subitems, rule_type) do
-      {:ok, list} -> list
-      :error -> []
+      {:ok, list} ->
+        list
+
+      :error ->
+        []
     end
   end
 
@@ -37,6 +40,7 @@ defmodule ExGherkin.AstNode do
   end
 
   def get_tokens(%AstNode{} = node, token_type) do
-    get_items(node, RuleTypes.get_ruletype_for_tokentype(token_type))
+    rule_type = RuleTypes.get_ruletype_for_tokentype(token_type)
+    get_items(node, rule_type)
   end
 end
