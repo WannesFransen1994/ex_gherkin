@@ -192,9 +192,18 @@ defmodule ExGherkin.AstBuilder do
   defp transform_node(%AstNode{rule_type: ExamplesTable} = node, context),
     do: node |> get_table_rows() |> tuplize(context)
 
-  defp transform_node(%AstNode{rule_type: Description} = node, _context) do
-    raise "#{node.rule_type} implement me"
-    node
+  defp transform_node(%AstNode{rule_type: Description} = node, context) do
+    AstNode.get_tokens(node, Other)
+    |> Enum.reverse()
+    |> Enum.split_while(fn token ->
+      token.matched_text
+      |> String.trim()
+      |> match_empty()
+    end)
+    |> elem(1)
+    |> Enum.map(fn token -> token.matched_text end)
+    |> Enum.join("\n")
+    |> tuplize(context)
   end
 
   defp transform_node(%AstNode{rule_type: Feature} = n, context) do
@@ -356,7 +365,7 @@ defmodule ExGherkin.AstBuilder do
 
   defp add_background_to(m, nil), do: m
 
-  defp add_scen_def_children_to(%FeatureMessage{} = m, scenario_definition_items) do
+  defp add_scen_def_children_to(%{__struct__: t} = m, scenario_definition_items) when t in [FeatureMessage, RuleMessage] do
     scenario_definition_items
     |> Enum.reduce(m, fn scenario_def, feature_message_acc ->
       child = %FeatureChildMessage{value: {:scenario, scenario_def}}
