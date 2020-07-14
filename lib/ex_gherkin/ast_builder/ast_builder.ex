@@ -13,6 +13,7 @@ defmodule ExGherkin.AstBuilder do
   alias CucumberMessages.GherkinDocument.Feature.Step.DocString, as: DocStringMessage
   alias CucumberMessages.GherkinDocument.Feature.Background, as: BackgroundMessage
   alias CucumberMessages.GherkinDocument.Feature.Scenario.Examples, as: ExamplesMessage
+  alias CucumberMessages.GherkinDocument.Feature.FeatureChild.Rule, as: RuleMessage
 
   @me __MODULE__
 
@@ -228,9 +229,29 @@ defmodule ExGherkin.AstBuilder do
   end
 
   defp transform_node(%AstNode{rule_type: Rule} = node, context) do
-    raise "#{node.rule_type} implement me"
+    header_func = &AstNode.get_single(&1, RuleHeader, %AstNode{rule_type: RuleHeader})
+    rule_line_func = &AstNode.get_token(&1, RuleLine)
 
-    node
+    with {:header?, %AstNode{} = header} <- {:header?, header_func.(node)},
+         {:rule_line?, %Token{} = rule_line} <- {:rule_line?, rule_line_func.(header)} do
+      description = get_description(header)
+      background = AstNode.get_single(node, Background, nil)
+      scenarios = AstNode.get_items(node, ScenarioDefinition)
+      loc = Token.get_location(rule_line)
+
+      %RuleMessage{
+        id: "0",
+        location: loc,
+        keyword: rule_line.matched_keyword,
+        name: rule_line.matched_text
+      }
+      |> add_description_to(description)
+      |> add_background_to(background)
+      |> add_scen_def_children_to(scenarios)
+    else
+      {:header?, _} -> nil
+      {:rule_line?, _} -> nil
+    end
     |> tuplize(context)
   end
 
@@ -316,10 +337,8 @@ defmodule ExGherkin.AstBuilder do
   defp add_tablebody_to(%ExamplesMessage{} = m, nil), do: m
   defp add_tablebody_to(%ExamplesMessage{} = m, d), do: %{m | table_body: d}
 
-  defp add_description_to(%BackgroundMessage{} = m, nil), do: m
-  defp add_description_to(%BackgroundMessage{} = m, d), do: %{m | description: d}
-  defp add_description_to(%ExamplesMessage{} = m, nil), do: m
-  defp add_description_to(%ExamplesMessage{} = m, d), do: %{m | description: d}
+  defp add_description_to(m, nil), do: m
+  defp add_description_to(%{description: _} = m, d), do: %{m | description: d}
 
   defp add_mediatype_to(%DocStringMessage{} = m, nil), do: m
   defp add_mediatype_to(%DocStringMessage{} = m, d), do: %{m | media_type: d}
@@ -330,12 +349,12 @@ defmodule ExGherkin.AstBuilder do
   defp add_docstring_to(%StepMessage{} = m, nil), do: m
   defp add_docstring_to(%StepMessage{} = m, d), do: %{m | argument: {:doc_string, d}}
 
-  defp add_background_to(%FeatureMessage{} = m, nil), do: m
-
-  defp add_background_to(%FeatureMessage{} = m, d) do
+  defp add_background_to(%{__struct__: t} = m, d) when t in [FeatureMessage, RuleMessage] do
     child = %FeatureChildMessage{value: {:background, d}}
     %{m | children: [child | m.children]}
   end
+
+  defp add_background_to(m, nil), do: m
 
   defp add_scen_def_children_to(%FeatureMessage{} = m, scenario_definition_items) do
     scenario_definition_items
