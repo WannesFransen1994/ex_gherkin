@@ -10,6 +10,8 @@ defmodule ExGherkin.AstBuilder do
   alias CucumberMessages.GherkinDocument.Feature, as: FeatureMessage
   alias CucumberMessages.GherkinDocument.Feature.FeatureChild, as: FeatureChildMessage
   alias CucumberMessages.GherkinDocument, as: GherkinDocumentMessage
+  alias CucumberMessages.GherkinDocument.Feature.Step.DocString, as: DocStringMessage
+  alias CucumberMessages.GherkinDocument.Feature.Background, as: BackgroundMessage
 
   @me __MODULE__
 
@@ -81,16 +83,32 @@ defmodule ExGherkin.AstBuilder do
   end
 
   defp transform_node(%AstNode{rule_type: DocString} = node, context) do
-    line_tokens = AstNode.get_tokens(node, Other)
+    [separator_token | _] = AstNode.get_tokens(node, DocStringSeparator)
+
+    media_type =
+      case separator_token.matched_text |> String.trim() |> match_empty() do
+        true -> separator_token.matched_text
+        false -> nil
+      end
 
     content =
-      Enum.reduce(line_tokens, [], fn line_token, acc -> acc ++ ["\n", line_token.matchedText] end)
+      node
+      |> AstNode.get_tokens(Other)
+      |> Enum.reduce([], fn line_token, token_acc ->
+        [line_token.matched_text, "\n" | token_acc]
+      end)
+      |> Enum.reverse()
+      |> tl()
+      |> Enum.join(" ")
 
-    Enum.join(content, " ")
-    # case AstNode.get_tokens(node, DocStringSeparator) do
-    #   [] -> nil  #TODO: Fix if list is empty!
-    #   [seperatorToken | _] ->
-    # end
+    loc = Token.get_location(separator_token)
+
+    %DocStringMessage{
+      location: loc,
+      content: content,
+      delimiter: separator_token.matched_keyword
+    }
+    |> add_mediatype_to(media_type)
     |> tuplize(context)
   end
 
@@ -103,9 +121,19 @@ defmodule ExGherkin.AstBuilder do
   end
 
   defp transform_node(%AstNode{rule_type: Background} = node, context) do
-    raise "#{node.rule_type} implement me"
+    back_ground_line = AstNode.get_token(node, BackgroundLine)
+    description = get_description(node)
+    steps = get_steps(node)
+    loc = Token.get_location(back_ground_line)
 
-    node
+    %BackgroundMessage{
+      id: "0",
+      location: loc,
+      keyword: back_ground_line.matched_keyword,
+      name: back_ground_line.matched_text,
+      steps: steps
+    }
+    |> add_description_to(description)
     |> tuplize(context)
   end
 
@@ -136,10 +164,8 @@ defmodule ExGherkin.AstBuilder do
     node
   end
 
-  defp transform_node(%AstNode{rule_type: ExamplesTable} = node, _context) do
-    raise "#{node.rule_type} implement me"
-    node
-  end
+  defp transform_node(%AstNode{rule_type: ExamplesTable} = node, context),
+    do: node |> get_table_rows() |> tuplize(context)
 
   defp transform_node(%AstNode{rule_type: Description} = node, _context) do
     raise "#{node.rule_type} implement me"
@@ -260,6 +286,10 @@ defmodule ExGherkin.AstBuilder do
     |> Enum.reverse()
   end
 
+  defp add_description_to(%BackgroundMessage{} = m, nil), do: m
+  defp add_description_to(%BackgroundMessage{} = m, d), do: %{m | description: d}
+  defp add_mediatype_to(%DocStringMessage{} = m, nil), do: m
+  defp add_mediatype_to(%DocStringMessage{} = m, d), do: %{m | media_type: d}
   defp add_datatable_to(%StepMessage{} = m, nil), do: m
   defp add_datatable_to(%StepMessage{} = m, d), do: %{m | argument: {:data_table, d}}
   defp add_docstring_to(%StepMessage{} = m, nil), do: m
@@ -267,8 +297,6 @@ defmodule ExGherkin.AstBuilder do
   defp add_background_to(%FeatureMessage{} = m, nil), do: m
 
   defp add_background_to(%FeatureMessage{} = m, d) do
-    require IEx
-    IEx.pry()
     child = %FeatureChildMessage{value: {:background, d}}
     %{m | children: [child | m.children]}
   end
@@ -284,12 +312,13 @@ defmodule ExGherkin.AstBuilder do
   defp add_rule_children_to(%FeatureMessage{} = m, rule_items) do
     rule_items
     |> Enum.reduce(m, fn rule, feature_message_acc ->
-      require IEx
-      IEx.pry()
       child = %FeatureChildMessage{value: {:rule, rule}}
       %{feature_message_acc | children: [child | feature_message_acc.children]}
     end)
   end
 
   defp tuplize(new_node, new_context), do: {new_node, new_context}
+
+  defp match_empty(""), do: true
+  defp match_empty(_str), do: false
 end
