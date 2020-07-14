@@ -7,6 +7,7 @@ defmodule ExGherkin.Token do
     :matched_type,
     :matched_keyword,
     :matched_text,
+    :matched_gherkin_dialect,
     :items,
     indent: 1
   ]

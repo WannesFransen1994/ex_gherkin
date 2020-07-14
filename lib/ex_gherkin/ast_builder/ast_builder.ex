@@ -8,6 +8,8 @@ defmodule ExGherkin.AstBuilder do
   alias CucumberMessages.GherkinDocument.Feature.Step.DataTable, as: DataTableMessage
   alias CucumberMessages.GherkinDocument.Feature.TableRow, as: TableRowMessage
   alias CucumberMessages.GherkinDocument.Feature.TableRow.TableCell, as: TableCellMessage
+  alias CucumberMessages.GherkinDocument.Feature, as: FeatureMessage
+  alias CucumberMessages.GherkinDocument.Feature.FeatureChild, as: FeatureChildMessage
 
   @me __MODULE__
 
@@ -45,7 +47,7 @@ defmodule ExGherkin.AstBuilder do
       AstNode.add_subitem(current_node, to_be_transformed.rule_type, transformed_node)
 
     updated_builder = %{builder | stack: Stack.push(new_stack, updated_node)}
-    if context.state in [15, 41], do: IEx.pry()
+    # if context.state in [15, 41], do: IEx.pry()
     %{context | ast_builder: updated_builder}
   end
 
@@ -79,8 +81,8 @@ defmodule ExGherkin.AstBuilder do
       location: Token.get_location(token),
       text: token.matched_text
     }
-    |> add_datatable_to_step_message(AstNode.get_single(node, DataTable, nil))
-    |> add_docstring_to_step_message(AstNode.get_single(node, DocString, nil))
+    |> add_datatable_to(AstNode.get_single(node, DataTable, nil))
+    |> add_docstring_to(AstNode.get_single(node, DocString, nil))
   end
 
   defp transform_node(%AstNode{rule_type: DocString} = node) do
@@ -111,7 +113,7 @@ defmodule ExGherkin.AstBuilder do
     # TODO: Generate ID
     %MessageScenario{
       description: description,
-      id: 0,
+      id: "0",
       location: loc,
       keyword: scenario_line.matched_keyword,
       name: scenario_line.matched_text,
@@ -136,9 +138,34 @@ defmodule ExGherkin.AstBuilder do
     node
   end
 
-  defp transform_node(%AstNode{rule_type: Feature} = node) do
-    raise "#{node.rule_type} implement me"
-    node
+  defp transform_node(%AstNode{rule_type: Feature} = n) do
+    require IEx
+    header_func = &AstNode.get_single(&1, FeatureHeader, %AstNode{rule_type: FeatureHeader})
+    featureline_func = &AstNode.get_token(&1, FeatureLine)
+
+    with {:header?, %AstNode{} = header} <- {:header?, header_func.(n)},
+         {:feature_l?, %Token{} = fl} <- {:feature_l?, featureline_func.(header)},
+         {:dialect?, dialect} when dialect != nil <- {:dialect?, fl.matched_gherkin_dialect} do
+      background = AstNode.get_single(n, Background, nil)
+      scen_def_items = AstNode.get_items(n, ScenarioDefinition)
+      rule_items = AstNode.get_items(n, Rule)
+
+      %FeatureMessage{
+        tags: get_tags(header),
+        language: dialect,
+        location: Token.get_location(fl),
+        keyword: fl.matched_keyword,
+        name: fl.matched_text,
+        description: get_description(header)
+      }
+      |> add_background_to(background)
+      |> add_scen_def_children_to(scen_def_items)
+      |> add_rule_children_to(rule_items)
+    else
+      {:header?, _} -> IEx.pry()
+      {:feature_l?, _} -> IEx.pry()
+      {:dialect?, _} -> IEx.pry()
+    end
   end
 
   defp transform_node(%AstNode{rule_type: Rule} = node) do
@@ -170,7 +197,7 @@ defmodule ExGherkin.AstBuilder do
   end
 
   defp get_description(node) do
-    AstNode.get_single(node, Description, nil)
+    AstNode.get_single(node, Description, "")
   end
 
   defp get_table_rows(%AstNode{} = node) do
@@ -201,28 +228,58 @@ defmodule ExGherkin.AstBuilder do
     end)
   end
 
-  defp get_tags(node) do
-    case AstNode.get_single(node, Tags, %AstNode{rule_type: None}) do
-      nil ->
-        []
+  defp get_tags(node),
+    do: node |> AstNode.get_single(Tags, %AstNode{rule_type: None}) |> process_tags
 
-      tag_node ->
-        new_tokens_list = AstNode.get_tokens(tag_node, TagLine)
+  # Even possible?
+  defp process_tags(nil), do: []
 
-        Enum.reduce(new_tokens_list, [], fn token, token_acc ->
-          token_acc ++
-            Enum.reduce(token.items, [], fn tag_item, tag_acc ->
-              loc = get_location(token, tag_item.column)
-              # TODO: Generate ID
-              message_tag = %MessageTag{location: loc, name: tag_item.name, id: 0}
-              tag_acc ++ [message_tag]
-            end)
+  defp process_tags(%AstNode{} = tag_node) do
+    tag_node
+    |> AstNode.get_tokens(TagLine)
+    |> Enum.reduce([], fn token, token_acc ->
+      sub_result =
+        Enum.reduce(token.items, [], fn tag_item, tag_acc ->
+          loc = get_location(token, tag_item.column)
+          # TODO: Generate ID
+          message = %MessageTag{location: loc, name: tag_item.name, id: "0"}
+          [message | tag_acc]
         end)
-    end
+        |> Enum.reverse()
+
+      [sub_result | token_acc]
+    end)
+    |> Enum.reverse()
   end
 
-  defp add_datatable_to_step_message(%StepMessage{} = m, nil), do: m
-  defp add_datatable_to_step_message(%StepMessage{} = m, d), do: %{m | argument: {:data_table, d}}
-  defp add_docstring_to_step_message(%StepMessage{} = m, nil), do: m
-  defp add_docstring_to_step_message(%StepMessage{} = m, d), do: %{m | argument: {:doc_string, d}}
+  defp add_datatable_to(%StepMessage{} = m, nil), do: m
+  defp add_datatable_to(%StepMessage{} = m, d), do: %{m | argument: {:data_table, d}}
+  defp add_docstring_to(%StepMessage{} = m, nil), do: m
+  defp add_docstring_to(%StepMessage{} = m, d), do: %{m | argument: {:doc_string, d}}
+  defp add_background_to(%FeatureMessage{} = m, nil), do: m
+
+  defp add_background_to(%FeatureMessage{} = m, d) do
+    require IEx
+    IEx.pry()
+    child = %FeatureChildMessage{value: {:background, d}}
+    %{m | children: [child | m.children]}
+  end
+
+  defp add_scen_def_children_to(%FeatureMessage{} = m, scenario_definition_items) do
+    scenario_definition_items
+    |> Enum.reduce(m, fn scenario_def, feature_message_acc ->
+      child = %FeatureChildMessage{value: {:scenario, scenario_def}}
+      %{feature_message_acc | children: [child | feature_message_acc.children]}
+    end)
+  end
+
+  defp add_rule_children_to(%FeatureMessage{} = m, rule_items) do
+    rule_items
+    |> Enum.reduce(m, fn rule, feature_message_acc ->
+      require IEx
+      IEx.pry()
+      child = %FeatureChildMessage{value: {:rule, rule}}
+      %{feature_message_acc | children: [child | feature_message_acc.children]}
+    end)
+  end
 end

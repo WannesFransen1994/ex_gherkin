@@ -195,6 +195,8 @@ defmodule ExGherkin.TokenMatcher do
   defp mark_token_as_active(pc, token), do: %{pc | current_token: token}
   defp update_lexicon(pc, new_lexicon), do: %{pc | lexicon: new_lexicon}
 
-  def finalize_parse(context, token),
-    do: context |> add_token(token) |> mark_token_as_active(token)
+  def finalize_parse(%PC{} = context, %Token{} = token) do
+    token_w_language = %{token | matched_gherkin_dialect: context.language}
+    context |> add_token(token_w_language) |> mark_token_as_active(token_w_language)
+  end
 end
