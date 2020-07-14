@@ -165,8 +165,7 @@ defmodule ExGherkin.AstBuilder do
   end
 
   defp transform_node(%AstNode{rule_type: ExamplesTable} = node) do
-    raise "#{node.rule_type} implement me"
-    node
+    get_table_rows(node)
   end
 
   defp transform_node(%AstNode{rule_type: Description} = node) do
