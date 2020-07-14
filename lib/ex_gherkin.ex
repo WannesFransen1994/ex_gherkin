@@ -68,8 +68,8 @@ defmodule ExGherkin do
     # this normally gives a stream back of envelopes, we'll create the envelopes beforehand
     Enum.map(paths, fn p ->
       {:ok, envelope_w_source} = create_source_envelope(p, opts)
-      require IEx
-      IEx.pry()
+      # require IEx
+      # IEx.pry()
       # envelopeFromPath is the func called in Gherkin.java
 
       # After which you call a parsermessagestream func with 1 envelope argument.
@@ -116,6 +116,8 @@ defmodule ExGherkin do
     |> add_source_envelope(envelope, opts)
     |> add_gherkin_doc_envelope(message, opts)
     |> add_pickles_envelopes(nil, opts)
+    |> Map.fetch!(:messages)
+    |> Enum.reverse()
   end
 
   defp add_source_envelope(%{messages: m} = meta, envelope, opts) when is_list(opts) do
@@ -125,12 +127,13 @@ defmodule ExGherkin do
     end
   end
 
-  defp add_gherkin_doc_envelope(%{messages: m} = meta, %Source{data: d, uri: _u}, opts) do
+  defp add_gherkin_doc_envelope(%{messages: m} = meta, %Source{data: d, uri: u}, opts) do
     with {:has_no_ast_opt?, false} <- {:has_no_ast_opt?, "--no-ast" in opts},
          {:gherkin_doc_present?, false} <- {:gherkin_doc_present?, meta.gherkin_doc != nil},
          {:parser_context, %ParserContext{} = pc} <- {:parser_context, Parser.parse(d)},
          {:parseable?, {:ok, gherkin_doc}} <- {:parseable?, gherkin_doc_from_parsercontext(pc)} do
-      %{meta | gherkin_doc: gherkin_doc, messages: [%Envelope{message: gherkin_doc} | m]}
+      new_gherkin_doc = %{gherkin_doc | uri: u}
+      %{meta | gherkin_doc: new_gherkin_doc, messages: [%Envelope{message: gherkin_doc} | m]}
     else
       {:has_no_ast_opt?, true} ->
         Logger.warn("no ast opt")
@@ -142,10 +145,7 @@ defmodule ExGherkin do
     end
   end
 
-  defp gherkin_doc_from_parsercontext(_parsercontext) do
-    # TODO
-    {:ok, %GherkinDocument{}}
-  end
+  defp gherkin_doc_from_parsercontext(%ParserContext{ast_builder: b}), do: {:ok, b.gherkin_doc}
 
   defp add_pickles_envelopes(meta, _smthing, _opts) do
     # TODO

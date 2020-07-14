@@ -3,20 +3,20 @@ defmodule ExGherkin.AstBuilder do
   alias CucumberMessages.GherkinDocument.Comment
   alias CucumberMessages.GherkinDocument.Feature.Tag, as: MessageTag
   alias CucumberMessages.GherkinDocument.Feature.Scenario, as: MessageScenario
-  alias CucumberMessages.Location
   alias CucumberMessages.GherkinDocument.Feature.Step, as: StepMessage
   alias CucumberMessages.GherkinDocument.Feature.Step.DataTable, as: DataTableMessage
   alias CucumberMessages.GherkinDocument.Feature.TableRow, as: TableRowMessage
   alias CucumberMessages.GherkinDocument.Feature.TableRow.TableCell, as: TableCellMessage
   alias CucumberMessages.GherkinDocument.Feature, as: FeatureMessage
   alias CucumberMessages.GherkinDocument.Feature.FeatureChild, as: FeatureChildMessage
+  alias CucumberMessages.GherkinDocument, as: GherkinDocumentMessage
 
   @me __MODULE__
 
   require IEx
   require Logger
 
-  defstruct stack: %Stack{}, gherkin_doc: nil
+  defstruct stack: %Stack{}, gherkin_doc: %GherkinDocumentMessage{}
 
   def new do
     root_node = %AstNode{rule_type: None}
@@ -32,23 +32,17 @@ defmodule ExGherkin.AstBuilder do
     %{context | ast_builder: updated_builder}
   end
 
-  def end_rule(%ParserContext{ast_builder: %@me{stack: s} = builder} = context, type) do
+  def end_rule(%ParserContext{ast_builder: %@me{stack: s}} = context, type) do
     IO.puts("END_RULE\t#{context.state}\t#{type}")
 
     {%AstNode{} = to_be_transformed, %Stack{} = stack} = Stack.pop(s)
-    # transformed_node = to_be_transformed
-    # Logger.warn("YOU REALLY NEED TO IMPLEMENT THIS")
-    transformed_node = transform_node(to_be_transformed)
+    {transformed_node, transformed_context} = transform_node(to_be_transformed, context)
     {%AstNode{} = current_node, %Stack{} = new_stack} = Stack.pop(stack)
-    # add transformed node to current node with ruletype? line 75 in gherk doc builder
-    # NOTE: using token type here, in java it uses the enum ordinal to get the
-    #  Rule type, but doesn't this always match...? Just passing token type, see what happens
-    updated_node =
-      AstNode.add_subitem(current_node, to_be_transformed.rule_type, transformed_node)
 
-    updated_builder = %{builder | stack: Stack.push(new_stack, updated_node)}
-    if context.state in [15], do: IEx.pry()
-    %{context | ast_builder: updated_builder}
+    new_node = AstNode.add_subitem(current_node, to_be_transformed.rule_type, transformed_node)
+    new_builder = %{transformed_context.ast_builder | stack: Stack.push(new_stack, new_node)}
+
+    %{transformed_context | ast_builder: new_builder}
   end
 
   def build(%ParserContext{ast_builder: %@me{} = builder} = context) do
@@ -71,7 +65,7 @@ defmodule ExGherkin.AstBuilder do
     end
   end
 
-  defp transform_node(%AstNode{rule_type: Step} = node) do
+  defp transform_node(%AstNode{rule_type: Step} = node, context) do
     # TODO: ID GENERATOR
     token = AstNode.get_token(node, StepLine)
 
@@ -83,38 +77,46 @@ defmodule ExGherkin.AstBuilder do
     }
     |> add_datatable_to(AstNode.get_single(node, DataTable, nil))
     |> add_docstring_to(AstNode.get_single(node, DocString, nil))
+    |> tuplize(context)
   end
 
-  defp transform_node(%AstNode{rule_type: DocString} = node) do
-    line_tokens = AstNode.get_tokens(node,Other)
-    content = Enum.reduce(line_tokens,[],fn line_token, acc -> acc ++ ["\n",line_token.matchedText] end)
-    Enum.join(content," ")
+  defp transform_node(%AstNode{rule_type: DocString} = node, context) do
+    line_tokens = AstNode.get_tokens(node, Other)
+
+    content =
+      Enum.reduce(line_tokens, [], fn line_token, acc -> acc ++ ["\n", line_token.matchedText] end)
+
+    Enum.join(content, " ")
     # case AstNode.get_tokens(node, DocStringSeparator) do
     #   [] -> nil  #TODO: Fix if list is empty!
     #   [seperatorToken | _] ->
     # end
+    |> tuplize(context)
   end
 
-  defp transform_node(%AstNode{rule_type: DataTable} = node) do
+  defp transform_node(%AstNode{rule_type: DataTable} = node, context) do
     rows = get_table_rows(node)
     location = rows |> List.first() |> Map.fetch!(:location)
 
     %DataTableMessage{location: location, rows: rows}
+    |> tuplize(context)
   end
 
-  defp transform_node(%AstNode{rule_type: Background} = node) do
+  defp transform_node(%AstNode{rule_type: Background} = node, context) do
     raise "#{node.rule_type} implement me"
+
     node
+    |> tuplize(context)
   end
 
-  defp transform_node(%AstNode{rule_type: ScenarioDefinition} = node) do
+  defp transform_node(%AstNode{rule_type: ScenarioDefinition} = node, context) do
     tags = get_tags(node)
     scenario_node = AstNode.get_single(node, Scenario, nil)
     scenario_line = AstNode.get_token(scenario_node, ScenarioLine)
     description = get_description(scenario_node)
     steps = get_steps(scenario_node)
     example_list = AstNode.get_items(scenario_node, ExamplesDefinition)
-    loc = get_location(scenario_line, 0)
+    loc = Token.get_location(scenario_line)
     # TODO: Generate ID
     %MessageScenario{
       description: description,
@@ -126,24 +128,25 @@ defmodule ExGherkin.AstBuilder do
       steps: steps,
       examples: example_list
     }
+    |> tuplize(context)
   end
 
-  defp transform_node(%AstNode{rule_type: ExamplesDefinition} = node) do
+  defp transform_node(%AstNode{rule_type: ExamplesDefinition} = node, _context) do
     raise "#{node.rule_type} implement me"
     node
   end
 
-  defp transform_node(%AstNode{rule_type: ExamplesTable} = node) do
+  defp transform_node(%AstNode{rule_type: ExamplesTable} = node, _context) do
     raise "#{node.rule_type} implement me"
     node
   end
 
-  defp transform_node(%AstNode{rule_type: Description} = node) do
+  defp transform_node(%AstNode{rule_type: Description} = node, _context) do
     raise "#{node.rule_type} implement me"
     node
   end
 
-  defp transform_node(%AstNode{rule_type: Feature} = n) do
+  defp transform_node(%AstNode{rule_type: Feature} = n, context) do
     require IEx
     header_func = &AstNode.get_single(&1, FeatureHeader, %AstNode{rule_type: FeatureHeader})
     featureline_func = &AstNode.get_token(&1, FeatureLine)
@@ -171,31 +174,31 @@ defmodule ExGherkin.AstBuilder do
       {:feature_l?, _} -> IEx.pry()
       {:dialect?, _} -> IEx.pry()
     end
+    |> tuplize(context)
   end
 
-  defp transform_node(%AstNode{rule_type: Rule} = node) do
+  defp transform_node(%AstNode{rule_type: Rule} = node, context) do
     raise "#{node.rule_type} implement me"
+
     node
+    |> tuplize(context)
   end
 
-  defp transform_node(%AstNode{rule_type: GherkinDocument} = node) do
-    # TODO: actually transform
-    raise "#{node.rule_type} implement me"
-    node
+  defp transform_node(%AstNode{rule_type: GherkinDocument} = n, %ParserContext{} = context) do
+    feature_message = %FeatureMessage{} = AstNode.get_single(n, Feature, nil)
+
+    new_gherkin_doc = %{context.ast_builder.gherkin_doc | feature: feature_message}
+    new_builder = %{context.ast_builder | gherkin_doc: new_gherkin_doc}
+    new_context = %{context | ast_builder: new_builder}
+
+    tuplize(new_gherkin_doc, new_context)
   end
 
-  defp transform_node(node), do: node
+  defp transform_node(node, context), do: tuplize(node, context)
 
-  defp get_location(%Token{} = token, column) do
-    index =
-      case column do
-        0 -> token.indent
-        other -> other
-      end
-
-    line = Token.get_location(token).line
-    %Location{line: line, column: index}
-  end
+  ############################
+  # HELPER FUNCTIONS         #
+  ############################
 
   defp get_steps(node) do
     AstNode.get_items(node, Step)
@@ -245,7 +248,7 @@ defmodule ExGherkin.AstBuilder do
     |> Enum.reduce([], fn token, token_acc ->
       sub_result =
         Enum.reduce(token.items, [], fn tag_item, tag_acc ->
-          loc = get_location(token, tag_item.column)
+          loc = %{Token.get_location(token) | column: tag_item.column}
           # TODO: Generate ID
           message = %MessageTag{location: loc, name: tag_item.name, id: "0"}
           [message | tag_acc]
@@ -287,4 +290,6 @@ defmodule ExGherkin.AstBuilder do
       %{feature_message_acc | children: [child | feature_message_acc.children]}
     end)
   end
+
+  defp tuplize(new_node, new_context), do: {new_node, new_context}
 end
