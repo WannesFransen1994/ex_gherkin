@@ -10,6 +10,7 @@ defmodule ExGherkin.AstBuilder do
   alias CucumberMessages.GherkinDocument.Feature.TableRow.TableCell, as: TableCellMessage
   alias CucumberMessages.GherkinDocument.Feature, as: FeatureMessage
   alias CucumberMessages.GherkinDocument.Feature.FeatureChild, as: FeatureChildMessage
+  alias CucumberMessages.GherkinDocument.Feature.Step.DocString, as: DocStringMessage
 
   @me __MODULE__
 
@@ -47,7 +48,6 @@ defmodule ExGherkin.AstBuilder do
       AstNode.add_subitem(current_node, to_be_transformed.rule_type, transformed_node)
 
     updated_builder = %{builder | stack: Stack.push(new_stack, updated_node)}
-    if context.state in [15], do: IEx.pry()
     %{context | ast_builder: updated_builder}
   end
 
@@ -86,13 +86,32 @@ defmodule ExGherkin.AstBuilder do
   end
 
   defp transform_node(%AstNode{rule_type: DocString} = node) do
-    line_tokens = AstNode.get_tokens(node,Other)
-    content = Enum.reduce(line_tokens,[],fn line_token, acc -> acc ++ ["\n",line_token.matchedText] end)
-    Enum.join(content," ")
-    # case AstNode.get_tokens(node, DocStringSeparator) do
-    #   [] -> nil  #TODO: Fix if list is empty!
-    #   [seperatorToken | _] ->
-    # end
+    [separator_token | _] = AstNode.get_tokens(node, DocStringSeparator)
+
+    media_type =
+      case separator_token.matched_text |> String.trim() |> match_empty() do
+        true -> separator_token.matched_text
+        false -> nil
+      end
+
+    content =
+      node
+      |> AstNode.get_tokens(Other)
+      |> Enum.reduce([], fn line_token, token_acc ->
+        [line_token.matched_text, "\n" | token_acc]
+      end)
+      |> Enum.reverse()
+      |> tl()
+      |> Enum.join(" ")
+
+    loc = Token.get_location(separator_token)
+
+    %DocStringMessage{
+      location: loc,
+      content: content,
+      delimiter: separator_token.matched_keyword
+    }
+    |> add_mediatype_to(media_type)
   end
 
   defp transform_node(%AstNode{rule_type: DataTable} = node) do
@@ -257,6 +276,8 @@ defmodule ExGherkin.AstBuilder do
     |> Enum.reverse()
   end
 
+  defp add_mediatype_to(%DocStringMessage{} = m, nil), do: m
+  defp add_mediatype_to(%DocStringMessage{} = m, d), do: %{m | media_type: d}
   defp add_datatable_to(%StepMessage{} = m, nil), do: m
   defp add_datatable_to(%StepMessage{} = m, d), do: %{m | argument: {:data_table, d}}
   defp add_docstring_to(%StepMessage{} = m, nil), do: m
@@ -264,8 +285,6 @@ defmodule ExGherkin.AstBuilder do
   defp add_background_to(%FeatureMessage{} = m, nil), do: m
 
   defp add_background_to(%FeatureMessage{} = m, d) do
-    require IEx
-    IEx.pry()
     child = %FeatureChildMessage{value: {:background, d}}
     %{m | children: [child | m.children]}
   end
@@ -281,10 +300,11 @@ defmodule ExGherkin.AstBuilder do
   defp add_rule_children_to(%FeatureMessage{} = m, rule_items) do
     rule_items
     |> Enum.reduce(m, fn rule, feature_message_acc ->
-      require IEx
-      IEx.pry()
       child = %FeatureChildMessage{value: {:rule, rule}}
       %{feature_message_acc | children: [child | feature_message_acc.children]}
     end)
   end
+
+  defp match_empty(""), do: true
+  defp match_empty(_str), do: false
 end
