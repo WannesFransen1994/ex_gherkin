@@ -7,88 +7,36 @@ defmodule ExGherkin do
     |> ExGherkin.TokenWriter.write_tokens()
   end
 
-  def parse(feature_file) do
-    feature_file
-    |> File.read!()
-    |> String.split(~r/\R/)
-    |> ExGherkin.Parser.parse()
+  def parse(feature_file), do: feature_file |> File.read!() |> ExGherkin.Parser.parse()
+
+  def pr(opts \\ ["--no-pickles"]) do
+    Path.join(["testdata", "good", "minimal-example.feature"])
+    |> gherkin_from_path(opts)
   end
-
-  def list_good_testdata() do
-    [File.cwd!(), "testdata", "good", "rule.feature"]
-    |> Path.join()
-    |> Path.wildcard()
-  end
-
-  def run_only_during_dev() do
-    # :debugger.start()
-    # :int.ni(ExGherkin.Parser)
-    # :int.break(ExGherkin.Parser, 93)
-    # :int.break(ExGherkin.Parser, 105)
-    execute_good_test_files(list_good_testdata(), nil)
-  end
-
-  def execute_good_test_files([], latest_outcome), do: latest_outcome
-  # def execute_good_test_files([], _latest_outcome), do: :ok
-
-  def execute_good_test_files([file | rem], _latest_outcome) do
-    result =
-      file
-      |> File.read!()
-      |> print_filepath_and_return(file)
-      |> print_and_return()
-      |> String.split(~r/\R/)
-      |> ExGherkin.Parser.parse()
-      |> ExGherkin.TokenWriter.write_tokens()
-
-    require Logger
-    Logger.debug("\n" <> result)
-    File.write!("DIFF_ME", result)
-
-    execute_good_test_files(rem, result)
-  end
-
-  defp print_and_return(data) do
-    Logger.debug("\n###################################\n" <> data <> "\n\n")
-    data
-  end
-
-  defp print_filepath_and_return(data, path) do
-    Logger.debug("\n#{path}\n")
-    data
-  end
-
-  # Just writing some gibberish which i think is from the java implementation
-  def pr(opts \\ []),
-    do:
-      [Path.join([File.cwd!(), "testdata", "good", "minimal-example.feature"])]
-      |> gherkin_from_paths(opts)
 
   def gherkin_from_paths(paths, opts) when is_list(paths) do
-    # this normally gives a stream back of envelopes, we'll create the envelopes beforehand
-    Enum.map(paths, fn p ->
-      {:ok, envelope_w_source} = create_source_envelope(p, opts)
-      # require IEx
-      # IEx.pry()
-      # envelopeFromPath is the func called in Gherkin.java
+    Enum.map(paths, &gherkin_from_path(&1, opts))
+  end
 
-      # After which you call a parsermessagestream func with 1 envelope argument.
-      #   This envelope has a source message which contains the data that can be parsed.
-      parse_messages(envelope_w_source, opts)
-    end)
+  def gherkin_from_path(path, opts) when is_binary(path) do
+    {:ok, envelope_w_source} = create_source_envelope(path, opts)
+
+    envelope_w_source
+    |> parse_messages(opts)
+    |> print_messages("ndjson")
   end
 
   # def print_messages(envelopes, "protobuf" = format) do
   # end
 
-  # def print_messages(envelopes, "ndjson" = format) do
-  # end
+  def print_messages(envelopes, "ndjson" = _format) do
+    Enum.map(envelopes, &MMwriter.envelope_to_ndjson!/1)
+  end
 
-  alias CucumberMessages.{Envelope, Source, GherkinDocument}
+  alias CucumberMessages.{Envelope, Source}
   alias ExGherkin.{Parser, ParserContext}
 
   def create_source_envelope(path, _opts) do
-    # create new envelope w source message inside. This message should contain the necessary data.
     case File.read(path) do
       {:ok, binary} ->
         hardcoded_mtype = "text/x.cucumber.gherkin+plain"
@@ -102,14 +50,6 @@ defmodule ExGherkin do
   end
 
   def parse_messages(%Envelope{message: message} = envelope, opts) do
-    # Based on the include_source flag, this envelope is added to the messages list.
-    #
-    # If the envelope has a source, do following things
-    #   FIRST CHALLENGE: Create the gherkinDocument variable.
-    #   this has the complete AST already inside of it? nested messages? just how?
-
-    # returns a list of envelopes/messages?
-
     meta_info = %{messages: [], gherkin_doc: nil}
 
     meta_info
@@ -147,8 +87,14 @@ defmodule ExGherkin do
 
   defp gherkin_doc_from_parsercontext(%ParserContext{ast_builder: b}), do: {:ok, b.gherkin_doc}
 
-  defp add_pickles_envelopes(meta, _smthing, _opts) do
-    # TODO
-    meta
+  defp add_pickles_envelopes(meta, _smthing, opts) do
+    case "--no-pickles" in opts do
+      true ->
+        meta
+
+      false ->
+        require IEx
+        IEx.pry()
+    end
   end
 end
