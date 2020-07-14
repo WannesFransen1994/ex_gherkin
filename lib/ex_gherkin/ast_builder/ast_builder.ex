@@ -12,6 +12,7 @@ defmodule ExGherkin.AstBuilder do
   alias CucumberMessages.GherkinDocument, as: GherkinDocumentMessage
   alias CucumberMessages.GherkinDocument.Feature.Step.DocString, as: DocStringMessage
   alias CucumberMessages.GherkinDocument.Feature.Background, as: BackgroundMessage
+  alias CucumberMessages.GherkinDocument.Feature.Scenario.Examples, as: ExamplesMessage
 
   @me __MODULE__
 
@@ -159,9 +160,32 @@ defmodule ExGherkin.AstBuilder do
     |> tuplize(context)
   end
 
-  defp transform_node(%AstNode{rule_type: ExamplesDefinition} = node, _context) do
-    raise "#{node.rule_type} implement me"
-    node
+  defp transform_node(%AstNode{rule_type: ExamplesDefinition} = node, context) do
+    tags = get_tags(node)
+    examples_node = AstNode.get_single(node, Examples, nil)
+    examples_line = AstNode.get_token(examples_node, ExamplesLine)
+    description = get_description(examples_node)
+    rows = AstNode.get_single(examples_node, ExamplesTable, nil)
+    loc = Token.get_location(examples_line)
+
+    example_message =
+      %ExamplesMessage{
+        id: "0",
+        location: loc,
+        keyword: examples_line.matched_keyword,
+        name: examples_line.matched_text,
+        tags: tags
+      }
+      |> add_description_to(description)
+
+    if rows != nil && !Enum.empty?(rows) do
+      table_header = hd(rows)
+      add_tableheader_to(example_message, table_header)
+      table_body = tl(rows)
+      add_tablebody_to(example_message, table_body)
+    end
+
+    example_message |> tuplize(context)
   end
 
   defp transform_node(%AstNode{rule_type: ExamplesTable} = node, context),
@@ -286,14 +310,26 @@ defmodule ExGherkin.AstBuilder do
     |> Enum.reverse()
   end
 
+  defp add_tableheader_to(%ExamplesMessage{} = m, nil), do: m
+  defp add_tableheader_to(%ExamplesMessage{} = m, d), do: %{m | table_header: d}
+
+  defp add_tablebody_to(%ExamplesMessage{} = m, nil), do: m
+  defp add_tablebody_to(%ExamplesMessage{} = m, d), do: %{m | table_body: d}
+
   defp add_description_to(%BackgroundMessage{} = m, nil), do: m
   defp add_description_to(%BackgroundMessage{} = m, d), do: %{m | description: d}
+  defp add_description_to(%ExamplesMessage{} = m, nil), do: m
+  defp add_description_to(%ExamplesMessage{} = m, d), do: %{m | description: d}
+
   defp add_mediatype_to(%DocStringMessage{} = m, nil), do: m
   defp add_mediatype_to(%DocStringMessage{} = m, d), do: %{m | media_type: d}
+
   defp add_datatable_to(%StepMessage{} = m, nil), do: m
   defp add_datatable_to(%StepMessage{} = m, d), do: %{m | argument: {:data_table, d}}
+
   defp add_docstring_to(%StepMessage{} = m, nil), do: m
   defp add_docstring_to(%StepMessage{} = m, d), do: %{m | argument: {:doc_string, d}}
+
   defp add_background_to(%FeatureMessage{} = m, nil), do: m
 
   defp add_background_to(%FeatureMessage{} = m, d) do
