@@ -11,6 +11,7 @@ defmodule ExGherkin.AstBuilder do
   alias CucumberMessages.GherkinDocument.Feature, as: FeatureMessage
   alias CucumberMessages.GherkinDocument.Feature.FeatureChild, as: FeatureChildMessage
   alias CucumberMessages.GherkinDocument.Feature.Step.DocString, as: DocStringMessage
+  alias CucumberMessages.GherkinDocument.Feature.Background, as: BackgroundMessage
 
   @me __MODULE__
 
@@ -122,8 +123,19 @@ defmodule ExGherkin.AstBuilder do
   end
 
   defp transform_node(%AstNode{rule_type: Background} = node) do
-    raise "#{node.rule_type} implement me"
-    node
+    back_ground_line = AstNode.get_token(node, BackgroundLine)
+    description = get_description(node)
+    steps = get_steps(node)
+    loc = Token.get_location(back_ground_line)
+
+    %BackgroundMessage{
+      id: "0",
+      location: loc,
+      keyword: back_ground_line.matched_keyword,
+      name: back_ground_line.matched_text,
+      steps: steps
+    }
+    |> add_description_to(description)
   end
 
   defp transform_node(%AstNode{rule_type: ScenarioDefinition} = node) do
@@ -276,6 +288,8 @@ defmodule ExGherkin.AstBuilder do
     |> Enum.reverse()
   end
 
+  defp add_description_to(%BackgroundMessage{} = m, nil), do: m
+  defp add_description_to(%BackgroundMessage{} = m, d), do: %{m | description: d}
   defp add_mediatype_to(%DocStringMessage{} = m, nil), do: m
   defp add_mediatype_to(%DocStringMessage{} = m, d), do: %{m | media_type: d}
   defp add_datatable_to(%StepMessage{} = m, nil), do: m

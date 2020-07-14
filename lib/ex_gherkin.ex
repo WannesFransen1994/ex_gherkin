@@ -15,7 +15,7 @@ defmodule ExGherkin do
   end
 
   def list_good_testdata() do
-    [File.cwd!(), "testdata", "good", "docstrings.feature"]
+    [File.cwd!(), "testdata", "good", "background.feature"]
     |> Path.join()
     |> Path.wildcard()
   end
