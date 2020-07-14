@@ -45,7 +45,7 @@ defmodule ExGherkin.AstBuilder do
       AstNode.add_subitem(current_node, to_be_transformed.rule_type, transformed_node)
 
     updated_builder = %{builder | stack: Stack.push(new_stack, updated_node)}
-    if context.state in [15, 41], do: IEx.pry()
+    if context.state in [15], do: IEx.pry()
     %{context | ast_builder: updated_builder}
   end
 
@@ -84,8 +84,13 @@ defmodule ExGherkin.AstBuilder do
   end
 
   defp transform_node(%AstNode{rule_type: DocString} = node) do
-    raise "#{node.rule_type} implement me"
-    node
+    line_tokens = AstNode.get_tokens(node,Other)
+    content = Enum.reduce(line_tokens,[],fn line_token, acc -> acc ++ ["\n",line_token.matchedText] end)
+    Enum.join(content," ")
+    # case AstNode.get_tokens(node, DocStringSeparator) do
+    #   [] -> nil  #TODO: Fix if list is empty!
+    #   [seperatorToken | _] ->
+    # end
   end
 
   defp transform_node(%AstNode{rule_type: DataTable} = node) do
