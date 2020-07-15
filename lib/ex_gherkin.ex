@@ -7,7 +7,8 @@ defmodule ExGherkin do
     |> ExGherkin.TokenWriter.write_tokens()
   end
 
-  def parse(feature_file), do: feature_file |> File.read!() |> ExGherkin.Parser.parse([])
+  def parse(feature_file, opts \\ []),
+    do: feature_file |> File.read!() |> ExGherkin.Parser.parse(opts)
 
   def pr(opts \\ ["--no-pickles", "--predictable-ids"]) do
     Path.join(["testdata", "good", "minimal-example.feature"])
@@ -23,7 +24,8 @@ defmodule ExGherkin do
 
     envelope_w_source
     |> parse_messages(opts)
-    |> print_messages("ndjson")
+
+    # |> print_messages("ndjson")
   end
 
   # def print_messages(envelopes, "protobuf" = format) do

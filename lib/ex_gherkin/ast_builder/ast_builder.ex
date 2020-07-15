@@ -149,14 +149,14 @@ defmodule ExGherkin.AstBuilder do
   end
 
   defp transform_node(%AstNode{rule_type: ScenarioDefinition} = node, context) do
-    tags = get_tags(node)
+    {tags, semi_updated_context} = get_tags(node, context)
     scenario_node = AstNode.get_single(node, Scenario, nil)
     scenario_line = AstNode.get_token(scenario_node, ScenarioLine)
     description = get_description(scenario_node)
     steps = get_steps(scenario_node)
     example_list = AstNode.get_items(scenario_node, ExamplesDefinition)
     loc = Token.get_location(scenario_line)
-    {id, updated_context} = get_id_and_update_context(context)
+    {id, updated_context} = get_id_and_update_context(semi_updated_context)
     # TODO: Generate ID
     %MessageScenario{
       description: description,
@@ -172,14 +172,14 @@ defmodule ExGherkin.AstBuilder do
   end
 
   defp transform_node(%AstNode{rule_type: ExamplesDefinition} = node, context) do
-    tags = get_tags(node)
+    {tags, semi_updated_context} = get_tags(node, context)
     examples_node = AstNode.get_single(node, Examples, nil)
     examples_line = AstNode.get_token(examples_node, ExamplesLine)
     description = get_description(examples_node)
     rows = AstNode.get_single(examples_node, ExamplesTable, nil)
     loc = Token.get_location(examples_line)
 
-    {id, updated_context} = get_id_and_update_context(context)
+    {id, updated_context} = get_id_and_update_context(semi_updated_context)
 
     example_message =
       %ExamplesMessage{
@@ -234,9 +234,10 @@ defmodule ExGherkin.AstBuilder do
       background = AstNode.get_single(n, Background, nil)
       scen_def_items = AstNode.get_items(n, ScenarioDefinition)
       rule_items = AstNode.get_items(n, Rule)
+      {tags, semi_updated_context} = get_tags(header, context)
 
       %FeatureMessage{
-        tags: get_tags(header),
+        tags: tags,
         language: dialect,
         location: Token.get_location(fl),
         keyword: fl.matched_keyword,
@@ -246,12 +247,12 @@ defmodule ExGherkin.AstBuilder do
       |> add_background_to(background)
       |> add_scen_def_children_to(scen_def_items)
       |> add_rule_children_to(rule_items)
+      |> tuplize(semi_updated_context)
     else
       {:header?, _} -> IEx.pry()
       {:feature_l?, _} -> IEx.pry()
       {:dialect?, _} -> IEx.pry()
     end
-    |> tuplize(context)
   end
 
   defp transform_node(%AstNode{rule_type: Rule} = node, context) do
@@ -334,28 +335,31 @@ defmodule ExGherkin.AstBuilder do
     end)
   end
 
-  defp get_tags(node),
-    do: node |> AstNode.get_single(Tags, %AstNode{rule_type: None}) |> process_tags
+  defp get_tags(node, context),
+    do: node |> AstNode.get_single(Tags, %AstNode{rule_type: None}) |> process_tags(context)
 
   # Even possible?
-  defp process_tags(nil), do: []
+  defp process_tags(nil, context), do: {[], context}
 
-  defp process_tags(%AstNode{} = tag_node) do
-    tag_node
-    |> AstNode.get_tokens(TagLine)
-    |> Enum.reduce([], fn token, token_acc ->
-      sub_result =
-        Enum.reduce(token.items, [], fn tag_item, tag_acc ->
-          loc = %{Token.get_location(token) | column: tag_item.column}
-          # TODO: Generate ID
-          message = %MessageTag{location: loc, name: tag_item.name, id: "0"}
-          [message | tag_acc]
-        end)
-        |> Enum.reverse()
+  defp process_tags(%AstNode{} = tag_node, context) do
+    result =
+      tag_node
+      |> AstNode.get_tokens(TagLine)
+      |> Enum.reduce([], fn token, token_acc ->
+        sub_result =
+          Enum.reduce(token.items, [], fn tag_item, tag_acc ->
+            loc = %{Token.get_location(token) | column: tag_item.column}
+            # TODO: Generate ID
+            message = %MessageTag{location: loc, name: tag_item.name, id: "0"}
+            [message | tag_acc]
+          end)
+          |> Enum.reverse()
 
-      [sub_result | token_acc]
-    end)
-    |> Enum.reverse()
+        [sub_result | token_acc]
+      end)
+      |> Enum.reverse()
+
+    {result, context}
   end
 
   defp add_tableheader_to(%ExamplesMessage{} = m, nil), do: m
