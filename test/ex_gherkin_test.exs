@@ -22,7 +22,7 @@ defmodule ExGherkinTest do
   #   end)
   # end
 
-  @file_name "testdata/good/background.feature"
+  @file_name "testdata/good/complex_background.feature"
   @moduletag timeout: :infinity
 
   test "sampletest source correctly structured" do

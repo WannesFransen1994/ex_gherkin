@@ -408,7 +408,7 @@ defmodule ExGherkin.AstBuilder do
     rule_items
     |> Enum.reduce(m, fn rule, feature_message_acc ->
       child = %FeatureChildMessage{value: {:rule, rule}}
-      %{feature_message_acc | children: [child | feature_message_acc.children]}
+      %{feature_message_acc | children: feature_message_acc.children ++ [child]}
     end)
   end
 
