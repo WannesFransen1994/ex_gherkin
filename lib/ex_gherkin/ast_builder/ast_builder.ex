@@ -286,7 +286,7 @@ defmodule ExGherkin.AstBuilder do
   end
 
   defp transform_node(%AstNode{rule_type: GherkinDocument} = n, %ParserContext{} = context) do
-    feature_message = %FeatureMessage{} = AstNode.get_single(n, Feature, nil)
+    feature_message = AstNode.get_single(n, Feature, nil)
 
     new_gherkin_doc = %{context.ast_builder.gherkin_doc | feature: feature_message}
     new_builder = %{context.ast_builder | gherkin_doc: new_gherkin_doc}

@@ -5,7 +5,7 @@ defmodule ExGherkinTest do
 
   @moduletag timeout: :infinity
 
-  @files ["testdata", "good", "docstrings.feature"]
+  @files ["testdata", "good", "empty.feature"]
          |> Path.join()
          |> Path.wildcard()
 
