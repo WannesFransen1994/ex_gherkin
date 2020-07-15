@@ -57,10 +57,10 @@ defmodule ExGherkin.AstBuilder do
     token = context.current_token
 
     case token.matched_type do
-      Comment ->
+      Elixir.Comment ->
         loc = Token.get_location(token)
         comment_message = %Comment{location: loc, text: token.line.content}
-        updated_comments = [comment_message | builder.gherkin_doc.comments]
+        updated_comments = builder.gherkin_doc.comments ++ [comment_message]
         updated_gherkin_doc = %{builder.gherkin_doc | comments: updated_comments}
         updated_builder = %{builder | gherkin_doc: updated_gherkin_doc}
         %{context | ast_builder: updated_builder}
@@ -213,7 +213,7 @@ defmodule ExGherkin.AstBuilder do
 
   defp transform_node(%AstNode{rule_type: Description} = node, context) do
     AstNode.get_tokens(node, Other)
-    |> Enum.reverse()
+    # |> Enum.reverse()
     |> Enum.split_while(fn token ->
       token.matched_text
       |> String.trim()

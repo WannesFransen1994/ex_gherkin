@@ -1,4 +1,6 @@
 defmodule MMwriter do
+  require IEx
+
   defp unstruct(%{__struct__: _} = map, acc) when is_map(map) do
     map |> Map.from_struct() |> unstruct(acc)
   end
@@ -24,6 +26,9 @@ defmodule MMwriter do
       {_k, []}, acc ->
         acc
 
+      {_k, {new_key, v}}, acc when is_map(v) or is_list(v) ->
+        Map.put(acc, lower_camelcase(new_key), unstruct(v, %{}))
+
       {k, v}, acc when is_map(v) or is_list(v) ->
         Map.put(acc, lower_camelcase(k), unstruct(v, %{}))
 
@@ -38,6 +43,7 @@ defmodule MMwriter do
     list
     |> Enum.map(fn
       %CucumberMessages.GherkinDocument.Feature.FeatureChild{} = el -> el.value
+      # %CucumberMessages.GherkinDocument.Feature.Step{argument: {k,v}} = el -> el |> Map.put(k, v) |> Map.delete(:argument)
       other_el -> other_el
     end)
     |> Enum.reduce(acc, fn
@@ -59,10 +65,12 @@ defmodule MMwriter do
     end)
   end
 
-  defp unstruct({k, v}, acc), do: Map.put(acc, lower_camelcase(k), unstruct(v, %{}))
-  defp unstruct(just_data, _acc), do: just_data
+  defp unstruct({k, v}, acc) when not is_tuple(v),
+    do: Map.put(acc, lower_camelcase(k), unstruct(v, %{}))
 
-  alias CucumberMessages.Envelope
+  defp unstruct(just_data, _acc) when not is_tuple(just_data), do: just_data
+
+  alias(CucumberMessages.Envelope)
 
   def envelope_to_ndjson!(%Envelope{message: %{__struct__: message_type}} = message) do
     %{"name" => name} = Regex.named_captures(~r/(?<name>[^.]*)$/, Atom.to_string(message_type))

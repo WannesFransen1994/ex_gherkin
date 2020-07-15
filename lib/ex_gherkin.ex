@@ -36,6 +36,8 @@ defmodule ExGherkin do
       |> Enum.join("\n")
 
     result <> "\n"
+    # for testing oneliner (disable above 3 code lines)
+    # recompile; ExGherkin.gherkin_from_path("testdata/good/datatables.feature", ["--no-pickles", "--predictable-ids", "--no-source"]) |> ExGherkin.print_messages("ndjson")
   end
 
   alias CucumberMessages.{Envelope, Source}

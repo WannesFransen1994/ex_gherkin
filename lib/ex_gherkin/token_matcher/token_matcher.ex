@@ -80,8 +80,8 @@ defmodule ExGherkin.TokenMatcher do
     finalize_parse(context, token)
   end
 
-  def parse(Comment, %Line{} = l, context) do
-    token = struct!(Token, line: l, matched_type: Comment, matched_text: l.content)
+  def parse(Comment = type, %Line{} = l, context) do
+    token = struct!(Token, line: l, matched_type: type, matched_text: l.content)
     finalize_parse(context, token)
   end
 
@@ -180,10 +180,10 @@ defmodule ExGherkin.TokenMatcher do
     context |> update_lexicon(new_lexicon) |> finalize_parse(token)
   end
 
-  def parse(Other, %Line{content: c} = l, %PC{docstring_indent: i, docstring_sep: s} = pc) do
+  def parse(Other = type, %Line{content: c} = l, %PC{docstring_indent: i, docstring_sep: s} = pc) do
     indent_to_remove = i || 0
     cleaned_txt = c |> trim_x(" ", indent_to_remove) |> unescape_docstring(s)
-    token = struct!(Token, line: l, matched_type: Other, matched_text: cleaned_txt)
+    token = struct!(Token, line: l, matched_type: type, matched_text: cleaned_txt)
     pc |> add_token(token) |> mark_token_as_active(token)
   end
 
