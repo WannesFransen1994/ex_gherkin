@@ -110,9 +110,9 @@ defmodule ExGherkin.Parser do
     %{c | tokens: ordened_tokens, reverse_queue: []} |> AstBuilder.end_rule(GherkinDocument)
   end
 
-  defp parse_recursive(%ParserContext{lines: [], reverse_queue: rt} = c) do
-    eof_token = struct!(Token, line: nil, matched_type: EOF)
-    new_context = %{c | reverse_queue: [eof_token | rt]}
+  defp parse_recursive(%ParserContext{lines: [], reverse_queue: [h | _]} = c) do
+    l = struct!(Line, content: "", index: h.line.index + 1)
+    new_context = %{c | lines: [l]}
     parse_recursive(new_context)
   end
 

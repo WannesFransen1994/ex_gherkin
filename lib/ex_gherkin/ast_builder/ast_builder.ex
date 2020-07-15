@@ -41,7 +41,7 @@ defmodule ExGherkin.AstBuilder do
     %{context | ast_builder: updated_builder}
   end
 
-  def end_rule(%ParserContext{ast_builder: %@me{stack: s}} = context, _type) do
+  def end_rule(%ParserContext{ast_builder: %@me{stack: s}} = context, type) do
     # TODO: We gebruiken type niet? Ik denk dat dat wel moet?
     {%AstNode{} = to_be_transformed, %Stack{} = stack} = Stack.pop(s)
     {transformed_node, transformed_context} = transform_node(to_be_transformed, context)
@@ -119,32 +119,36 @@ defmodule ExGherkin.AstBuilder do
   end
 
   defp transform_node(%AstNode{rule_type: DataTable} = node, context) do
-    rows = get_table_rows(node)
+    {rows, updated_context} = get_table_rows(node, context)
     location = rows |> List.first() |> Map.fetch!(:location)
 
     %DataTableMessage{location: location, rows: rows}
-    |> tuplize(context)
+    |> tuplize(updated_context)
   end
 
   defp transform_node(%AstNode{rule_type: Background} = node, context) do
+    require IEx
     back_ground_line = AstNode.get_token(node, BackgroundLine)
     description = get_description(node)
     steps = get_steps(node)
     loc = Token.get_location(back_ground_line)
     {id, updated_context} = get_id_and_update_context(context)
 
-    %BackgroundMessage{
-      id: id,
-      location: loc,
-      keyword: back_ground_line.matched_keyword,
-      name: back_ground_line.matched_text,
-      steps: steps
-    }
-    |> add_description_to(description)
-    |> tuplize(updated_context)
+    m =
+      %BackgroundMessage{
+        id: id,
+        location: loc,
+        keyword: back_ground_line.matched_keyword,
+        name: back_ground_line.matched_text,
+        steps: steps
+      }
+      |> add_description_to(description)
+
+    tuplize(m, updated_context)
   end
 
   defp transform_node(%AstNode{rule_type: ScenarioDefinition} = node, context) do
+    IO.puts("IN SCENDEF")
     {tags, semi_updated_context} = get_tags(node, context)
     scenario_node = AstNode.get_single(node, Scenario, nil)
     scenario_line = AstNode.get_token(scenario_node, ScenarioLine)
@@ -154,7 +158,7 @@ defmodule ExGherkin.AstBuilder do
     loc = Token.get_location(scenario_line)
     {id, updated_context} = get_id_and_update_context(semi_updated_context)
 
-    %MessageScenario{
+    m = %MessageScenario{
       description: description,
       id: id,
       location: loc,
@@ -164,7 +168,8 @@ defmodule ExGherkin.AstBuilder do
       steps: steps,
       examples: example_list
     }
-    |> tuplize(updated_context)
+
+    tuplize(m, updated_context)
   end
 
   defp transform_node(%AstNode{rule_type: ExamplesDefinition} = node, context) do
@@ -202,8 +207,10 @@ defmodule ExGherkin.AstBuilder do
     |> tuplize(updated_context)
   end
 
-  defp transform_node(%AstNode{rule_type: ExamplesTable} = node, context),
-    do: node |> get_table_rows() |> tuplize(context)
+  defp transform_node(%AstNode{rule_type: ExamplesTable} = node, context) do
+    {rows, updated_context} = get_table_rows(node, context)
+    tuplize(rows, updated_context)
+  end
 
   defp transform_node(%AstNode{rule_type: Description} = node, context) do
     AstNode.get_tokens(node, Other)
@@ -220,7 +227,6 @@ defmodule ExGherkin.AstBuilder do
   end
 
   defp transform_node(%AstNode{rule_type: Feature} = n, context) do
-    require IEx
     header_func = &AstNode.get_single(&1, FeatureHeader, %AstNode{rule_type: FeatureHeader})
     featureline_func = &AstNode.get_token(&1, FeatureLine)
 
@@ -303,19 +309,20 @@ defmodule ExGherkin.AstBuilder do
     AstNode.get_single(node, Description, "")
   end
 
-  defp get_table_rows(%AstNode{} = node) do
-    result =
-      Enum.map(
-        ExGherkin.AstNode.get_tokens(node, TableRow),
-        fn %Token{} = t ->
-          # TODO: Replace ID
-          %TableRowMessage{id: "0", location: Token.get_location(t), cells: get_cells(t)}
-        end
-      )
-      |> Enum.reverse()
+  defp get_table_rows(%AstNode{} = node, context) do
+    tokens = ExGherkin.AstNode.get_tokens(node, TableRow)
+
+    {reverse_result, updated_context} =
+      Enum.reduce(tokens, {[], context}, fn %Token{} = t, {message_acc, context_acc} ->
+        {id, semi_updated_context} = get_id_and_update_context(context_acc)
+        m = %TableRowMessage{id: id, location: Token.get_location(t), cells: get_cells(t)}
+        {[m | message_acc], semi_updated_context}
+      end)
+
+    result = Enum.reverse(reverse_result)
 
     # TODO: ensure_cell_count
-    result
+    {result, updated_context}
   end
 
   # defp ensure_cell_count(table_rows) when is_list(table_rows) do
@@ -338,24 +345,27 @@ defmodule ExGherkin.AstBuilder do
   defp process_tags(nil, context), do: {[], context}
 
   defp process_tags(%AstNode{} = tag_node, context) do
-    result =
+    {reversed_result, updated_context} =
       tag_node
       |> AstNode.get_tokens(TagLine)
-      |> Enum.reduce([], fn token, token_acc ->
-        sub_result =
-          Enum.reduce(token.items, [], fn tag_item, tag_acc ->
-            loc = %{Token.get_location(token) | column: tag_item.column}
-            # TODO: Generate ID
-            message = %MessageTag{location: loc, name: tag_item.name, id: "0"}
-            [message | tag_acc]
-          end)
-          |> Enum.reverse()
+      |> Enum.reduce({[], context}, fn token, {token_acc, context_acc_1} ->
+        {reverse_subresult, semi_updated_context_1} = get_tags_from_token(token, context_acc_1)
 
-        [sub_result | token_acc]
+        sub_result = Enum.reverse(reverse_subresult)
+        {[sub_result | token_acc], semi_updated_context_1}
       end)
-      |> Enum.reverse()
 
-    {result, context}
+    result = Enum.reverse(reversed_result)
+    {result, updated_context}
+  end
+
+  defp get_tags_from_token(%Token{items: items} = token, context) do
+    Enum.reduce(items, {[], context}, fn tag_item, {tag_acc, context_acc} ->
+      loc = %{Token.get_location(token) | column: tag_item.column}
+      {id, semi_updated_context} = get_id_and_update_context(context_acc)
+      message = %MessageTag{location: loc, name: tag_item.name, id: id}
+      {[message | tag_acc], semi_updated_context}
+    end)
   end
 
   defp add_tableheader_to(%ExamplesMessage{} = m, nil), do: m
