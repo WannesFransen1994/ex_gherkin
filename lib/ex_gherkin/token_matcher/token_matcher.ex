@@ -177,7 +177,7 @@ defmodule ExGherkin.TokenMatcher do
     i = String.length(c) - String.length(String.trim_leading(c)) + 1
     {:ok, new_lexicon} = ExGherkin.Gherkin.Lexicon.load_lang(lang)
     token = struct!(Token, line: l, matched_type: Language, matched_text: lang, indent: i)
-    context |> update_lexicon(new_lexicon) |> finalize_parse(token)
+    %{context | language: lang} |> update_lexicon(new_lexicon) |> finalize_parse(token)
   end
 
   def parse(Other = type, %Line{content: c} = l, %PC{docstring_indent: i, docstring_sep: s} = pc) do
