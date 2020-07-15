@@ -22,7 +22,7 @@ defmodule ExGherkinTest do
   #   end)
   # end
 
-  @file_name = "testdata/good/minimal.feature"
+  @file_name "testdata/good/minimal.feature"
 
   test "sampletest source correctly structured" do
     opts = ["--no-pickles", "--predictable-ids", "--no-ast"]
@@ -35,7 +35,7 @@ defmodule ExGherkinTest do
 
     result = result <> "\n"
 
-    decent_result = File.read!(path <> ".source.ndjson")
+    decent_result = File.read!(@file_name <> ".source.ndjson")
     File.write!("diff/DIFF_ME", result)
     File.write!("diff/DIFF_ME_RESULT", decent_result)
     assert result == decent_result
@@ -52,7 +52,7 @@ defmodule ExGherkinTest do
 
     result = result <> "\n"
 
-    decent_result = File.read!(path <> ".ast.ndjson")
+    decent_result = File.read!(@file_name <> ".ast.ndjson")
     File.write!("diff/AST_DIFF_ME", result)
     File.write!("diff/AST_DIFF_ME_RESULT", decent_result)
     assert result == decent_result
