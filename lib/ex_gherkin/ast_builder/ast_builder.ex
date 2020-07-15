@@ -386,13 +386,13 @@ defmodule ExGherkin.AstBuilder do
   defp add_docstring_to(%StepMessage{} = m, nil), do: m
   defp add_docstring_to(%StepMessage{} = m, d), do: %{m | argument: {:doc_string, d}}
 
+  defp add_background_to(m, nil), do: m
+
   defp add_background_to(%{__struct__: t} = m, d) when t in [FeatureMessage, RuleMessage] do
     # IEx.pry()
     child = %FeatureChildMessage{value: {:background, d}}
     %{m | children: m.children ++ [child]}
   end
-
-  defp add_background_to(m, nil), do: m
 
   defp add_scen_def_children_to(%{__struct__: t} = m, scenario_definition_items)
        when t in [FeatureMessage, RuleMessage] do
