@@ -36,16 +36,13 @@ defmodule ExGherkin.AstBuilder do
   end
 
   def start_rule(%ParserContext{ast_builder: %@me{stack: s} = builder} = context, type) do
-    IO.puts("START_RULE\t#{context.state}\t#{type}")
-
     node_to_be_pushed = %AstNode{rule_type: type}
     updated_builder = %{builder | stack: Stack.push(s, node_to_be_pushed)}
     %{context | ast_builder: updated_builder}
   end
 
-  def end_rule(%ParserContext{ast_builder: %@me{stack: s}} = context, type) do
-    IO.puts("END_RULE\t#{context.state}\t#{type}")
-
+  def end_rule(%ParserContext{ast_builder: %@me{stack: s}} = context, _type) do
+    # TODO: We gebruiken type niet? Ik denk dat dat wel moet?
     {%AstNode{} = to_be_transformed, %Stack{} = stack} = Stack.pop(s)
     {transformed_node, transformed_context} = transform_node(to_be_transformed, context)
     {%AstNode{} = current_node, %Stack{} = new_stack} = Stack.pop(stack)
@@ -77,7 +74,6 @@ defmodule ExGherkin.AstBuilder do
   end
 
   defp transform_node(%AstNode{rule_type: Step} = node, context) do
-    # TODO: ID GENERATOR
     token = AstNode.get_token(node, StepLine)
     {id, updated_context} = get_id_and_update_context(context)
 
@@ -157,7 +153,7 @@ defmodule ExGherkin.AstBuilder do
     example_list = AstNode.get_items(scenario_node, ExamplesDefinition)
     loc = Token.get_location(scenario_line)
     {id, updated_context} = get_id_and_update_context(semi_updated_context)
-    # TODO: Generate ID
+
     %MessageScenario{
       description: description,
       id: id,

@@ -9,13 +9,26 @@ defmodule MMwriter do
 
   defp unstruct(map, acc) when is_map(map) do
     Enum.reduce(map, acc, fn
-      :ignore, acc -> acc
-      {_k, nil}, acc -> acc
-      {_k, ""}, acc -> acc
-      {_k, :ignore}, acc -> acc
-      {_k, []}, acc -> acc
-      {k, v}, acc when is_map(v) or is_list(v) -> Map.put(acc, k, unstruct(v, %{}))
-      {k, data}, acc -> Map.put(acc, k, data)
+      :ignore, acc ->
+        acc
+
+      {_k, nil}, acc ->
+        acc
+
+      {_k, ""}, acc ->
+        acc
+
+      {_k, :ignore}, acc ->
+        acc
+
+      {_k, []}, acc ->
+        acc
+
+      {k, v}, acc when is_map(v) or is_list(v) ->
+        Map.put(acc, lower_camelcase(k), unstruct(v, %{}))
+
+      {k, data}, acc ->
+        Map.put(acc, lower_camelcase(k), data)
     end)
   end
 
@@ -32,10 +45,10 @@ defmodule MMwriter do
         acc
 
       {new_key, value}, acc when is_map(acc) ->
-        [Map.put(acc, new_key, unstruct(value, %{}))]
+        [Map.put(acc, lower_camelcase(new_key), unstruct(value, %{}))]
 
       {new_key, value}, acc when is_list(acc) ->
-        acc ++ [Map.put(acc, new_key, unstruct(value, %{}))]
+        acc ++ [Map.put(acc, lower_camelcase(new_key), unstruct(value, %{}))]
 
       map, acc when is_map(acc) and acc == %{} ->
         [unstruct(map, %{})]
@@ -48,23 +61,17 @@ defmodule MMwriter do
   alias CucumberMessages.Envelope
 
   def envelope_to_ndjson!(%Envelope{message: %{__struct__: message_type}} = message) do
-    # :debugger.start()
-    # :int.ni(MMwriter)
-    # :int.break(MMwriter, 60)
-    # :int.break(MMwriter, 57)
-    # :int.break(MMwriter, 54)
-    # :int.break(MMwriter, 50)
-    # :int.break(MMwriter, 46)
-
     %{"name" => name} = Regex.named_captures(~r/(?<name>[^.]*)$/, Atom.to_string(message_type))
-    {to_be_downcased, camelcased} = name |> Macro.camelize() |> String.split_at(1)
-    new_key = String.downcase(to_be_downcased) <> camelcased
 
     jsonable = unstruct(message, %{})
-    unclean_jsonable = Map.put_new(jsonable, new_key, jsonable.message)
-    Map.delete(unclean_jsonable, :message)
+    unclean_jsonable = Map.put_new(jsonable, lower_camelcase(name), jsonable["message"])
+    Map.delete(unclean_jsonable, "message")
+  end
+
+  defp lower_camelcase(atom) when is_atom(atom), do: atom |> Atom.to_string() |> lower_camelcase()
+
+  defp lower_camelcase(string) when is_binary(string) do
+    {to_be_downcased, camelcased} = string |> Macro.camelize() |> String.split_at(1)
+    String.downcase(to_be_downcased) <> camelcased
   end
 end
-
-# recompile; t = ExGherkin.pr ; t |> Enum.at(1) |> MMwriter.envelope_to_ndjson!
-# recompile; t |> Enum.at(1) |> MMwriter.envelope_to_ndjson!

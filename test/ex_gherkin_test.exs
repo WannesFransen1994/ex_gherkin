@@ -22,12 +22,13 @@ defmodule ExGherkinTest do
   #   end)
   # end
 
+  @file_name = "testdata/good/minimal.feature"
+
   test "sampletest source correctly structured" do
-    path = "testdata/good/minimal.feature"
     opts = ["--no-pickles", "--predictable-ids", "--no-ast"]
 
     result =
-      ExGherkin.gherkin_from_path(path, opts)
+      ExGherkin.gherkin_from_path(@file_name, opts)
       |> ExGherkin.print_messages("ndjson")
       |> Enum.map(&Jason.encode!(&1))
       |> Enum.join("\n")
@@ -35,8 +36,25 @@ defmodule ExGherkinTest do
     result = result <> "\n"
 
     decent_result = File.read!(path <> ".source.ndjson")
-    File.write!("DIFF_ME", result)
-    File.write!("DIFF_ME_RESULT", decent_result)
+    File.write!("diff/DIFF_ME", result)
+    File.write!("diff/DIFF_ME_RESULT", decent_result)
+    assert result == decent_result
+  end
+
+  test "sampletest ast correctly structured" do
+    opts = ["--no-pickles", "--predictable-ids", "--no-source"]
+
+    result =
+      ExGherkin.gherkin_from_path(@file_name, opts)
+      |> ExGherkin.print_messages("ndjson")
+      |> Enum.map(&Jason.encode!(&1))
+      |> Enum.join("\n")
+
+    result = result <> "\n"
+
+    decent_result = File.read!(path <> ".ast.ndjson")
+    File.write!("diff/AST_DIFF_ME", result)
+    File.write!("diff/AST_DIFF_ME_RESULT", decent_result)
     assert result == decent_result
   end
 end
