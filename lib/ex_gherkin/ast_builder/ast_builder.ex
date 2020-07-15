@@ -105,7 +105,7 @@ defmodule ExGherkin.AstBuilder do
       end)
       |> Enum.reverse()
       |> tl()
-      |> Enum.join(" ")
+      |> Enum.join("")
 
     loc = Token.get_location(separator_token)
 
