@@ -93,8 +93,8 @@ defmodule ExGherkin.AstBuilder do
 
     media_type =
       case separator_token.matched_text |> String.trim() |> match_empty() do
-        true -> separator_token.matched_text
-        false -> nil
+        true -> nil
+        false -> separator_token.matched_text
       end
 
     content =
@@ -211,18 +211,19 @@ defmodule ExGherkin.AstBuilder do
   end
 
   defp transform_node(%AstNode{rule_type: Description} = node, context) do
-    temp = AstNode.get_tokens(node, Other)
-    |> Enum.reverse()
-    |> Enum.split_while(fn token ->
-      token.matched_text
-      |> String.trim()
-      |> match_empty()
-    end)
-    |> elem(1)
-    |> Enum.map(fn token -> token.matched_text end)
-    |> Enum.reverse()
-    |> Enum.join("\n")
-    |> tuplize(context)
+    temp =
+      AstNode.get_tokens(node, Other)
+      |> Enum.reverse()
+      |> Enum.split_while(fn token ->
+        token.matched_text
+        |> String.trim()
+        |> match_empty()
+      end)
+      |> elem(1)
+      |> Enum.map(fn token -> token.matched_text end)
+      |> Enum.reverse()
+      |> Enum.join("\n")
+      |> tuplize(context)
   end
 
   defp transform_node(%AstNode{rule_type: Feature} = n, context) do
