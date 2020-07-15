@@ -348,11 +348,10 @@ defmodule ExGherkin.AstBuilder do
     {reversed_result, updated_context} =
       tag_node
       |> AstNode.get_tokens(TagLine)
-      |> Enum.reduce({[], context}, fn token, {token_acc, context_acc_1} ->
-        {reverse_subresult, semi_updated_context_1} = get_tags_from_token(token, context_acc_1)
+      |> Enum.reduce({[], context}, fn token, {token_acc, context_acc} ->
+        {reverse_subresult, semi_updated_context} = get_tags_from_token(token, context_acc)
         sub_result = Enum.reverse(reverse_subresult)
-        # IEx.pry()
-        {sub_result ++ [token_acc], semi_updated_context_1}
+        {sub_result ++ [token_acc], semi_updated_context}
       end)
 
     result = Enum.reverse(reversed_result)
