@@ -87,9 +87,9 @@ end
 defmodule ExGherkin.Parser do
   alias ExGherkin.{ParserContext, TokenMatcher, Token, Line, AstBuilder}
 
-  def parse(text) when is_binary(text), do: text |> String.split(~r/\R/) |> parse
+  def parse(text, opts) when is_binary(text), do: text |> String.split(~r/\R/) |> parse(opts)
 
-  def parse(lines) when is_list(lines) do
+  def parse(lines, opts) when is_list(lines) do
     {:ok, default_lexicon} = ExGherkin.Gherkin.Lexicon.load_lang("en")
 
     lines_structs =
@@ -99,7 +99,7 @@ defmodule ExGherkin.Parser do
     struct!(ParserContext,
       lines: lines_structs,
       lexicon: default_lexicon,
-      ast_builder: AstBuilder.new()
+      ast_builder: AstBuilder.new(opts)
     )
     |> AstBuilder.start_rule(GherkinDocument)
     |> parse_recursive()

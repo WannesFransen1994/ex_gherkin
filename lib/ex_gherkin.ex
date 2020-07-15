@@ -7,9 +7,9 @@ defmodule ExGherkin do
     |> ExGherkin.TokenWriter.write_tokens()
   end
 
-  def parse(feature_file), do: feature_file |> File.read!() |> ExGherkin.Parser.parse()
+  def parse(feature_file), do: feature_file |> File.read!() |> ExGherkin.Parser.parse([])
 
-  def pr(opts \\ ["--no-pickles"]) do
+  def pr(opts \\ ["--no-pickles", "--predictable-ids"]) do
     Path.join(["testdata", "good", "minimal-example.feature"])
     |> gherkin_from_path(opts)
   end
@@ -70,10 +70,10 @@ defmodule ExGherkin do
   defp add_gherkin_doc_envelope(%{messages: m} = meta, %Source{data: d, uri: u}, opts) do
     with {:has_no_ast_opt?, false} <- {:has_no_ast_opt?, "--no-ast" in opts},
          {:gherkin_doc_present?, false} <- {:gherkin_doc_present?, meta.gherkin_doc != nil},
-         {:parser_context, %ParserContext{} = pc} <- {:parser_context, Parser.parse(d)},
+         {:parser_context, %ParserContext{} = pc} <- {:parser_context, Parser.parse(d, opts)},
          {:parseable?, {:ok, gherkin_doc}} <- {:parseable?, gherkin_doc_from_parsercontext(pc)} do
       new_gherkin_doc = %{gherkin_doc | uri: u}
-      %{meta | gherkin_doc: new_gherkin_doc, messages: [%Envelope{message: gherkin_doc} | m]}
+      %{meta | gherkin_doc: new_gherkin_doc, messages: [%Envelope{message: new_gherkin_doc} | m]}
     else
       {:has_no_ast_opt?, true} ->
         Logger.warn("no ast opt")

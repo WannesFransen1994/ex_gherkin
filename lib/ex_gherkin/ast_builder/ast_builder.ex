@@ -20,12 +20,19 @@ defmodule ExGherkin.AstBuilder do
   require IEx
   require Logger
 
-  defstruct stack: %Stack{}, gherkin_doc: %GherkinDocumentMessage{}
+  defstruct stack: %Stack{}, gherkin_doc: %GherkinDocumentMessage{}, id_gen: nil
 
-  def new do
+  def new(opts) do
     root_node = %AstNode{rule_type: None}
     default_stack = %Stack{} |> Stack.push(root_node)
-    %@me{stack: default_stack}
+
+    gen =
+      case "--predictable-ids" in opts do
+        true -> %ExGherkin.IdGenerator.PredictableGen{}
+        false -> %ExGherkin.IdGenerator.UUIDGen{}
+      end
+
+    %@me{stack: default_stack, id_gen: gen}
   end
 
   def start_rule(%ParserContext{ast_builder: %@me{stack: s} = builder} = context, type) do
@@ -72,16 +79,17 @@ defmodule ExGherkin.AstBuilder do
   defp transform_node(%AstNode{rule_type: Step} = node, context) do
     # TODO: ID GENERATOR
     token = AstNode.get_token(node, StepLine)
+    {id, updated_context} = get_id_and_update_context(context)
 
     %StepMessage{
-      id: "0",
+      id: id,
       keyword: token.matched_keyword,
       location: Token.get_location(token),
       text: token.matched_text
     }
     |> add_datatable_to(AstNode.get_single(node, DataTable, nil))
     |> add_docstring_to(AstNode.get_single(node, DocString, nil))
-    |> tuplize(context)
+    |> tuplize(updated_context)
   end
 
   defp transform_node(%AstNode{rule_type: DocString} = node, context) do
@@ -127,16 +135,17 @@ defmodule ExGherkin.AstBuilder do
     description = get_description(node)
     steps = get_steps(node)
     loc = Token.get_location(back_ground_line)
+    {id, updated_context} = get_id_and_update_context(context)
 
     %BackgroundMessage{
-      id: "0",
+      id: id,
       location: loc,
       keyword: back_ground_line.matched_keyword,
       name: back_ground_line.matched_text,
       steps: steps
     }
     |> add_description_to(description)
-    |> tuplize(context)
+    |> tuplize(updated_context)
   end
 
   defp transform_node(%AstNode{rule_type: ScenarioDefinition} = node, context) do
@@ -147,10 +156,11 @@ defmodule ExGherkin.AstBuilder do
     steps = get_steps(scenario_node)
     example_list = AstNode.get_items(scenario_node, ExamplesDefinition)
     loc = Token.get_location(scenario_line)
+    {id, updated_context} = get_id_and_update_context(context)
     # TODO: Generate ID
     %MessageScenario{
       description: description,
-      id: "0",
+      id: id,
       location: loc,
       keyword: scenario_line.matched_keyword,
       name: scenario_line.matched_text,
@@ -158,7 +168,7 @@ defmodule ExGherkin.AstBuilder do
       steps: steps,
       examples: example_list
     }
-    |> tuplize(context)
+    |> tuplize(updated_context)
   end
 
   defp transform_node(%AstNode{rule_type: ExamplesDefinition} = node, context) do
@@ -169,9 +179,11 @@ defmodule ExGherkin.AstBuilder do
     rows = AstNode.get_single(examples_node, ExamplesTable, nil)
     loc = Token.get_location(examples_line)
 
+    {id, updated_context} = get_id_and_update_context(context)
+
     example_message =
       %ExamplesMessage{
-        id: "0",
+        id: id,
         location: loc,
         keyword: examples_line.matched_keyword,
         name: examples_line.matched_text,
@@ -186,7 +198,7 @@ defmodule ExGherkin.AstBuilder do
       add_tablebody_to(example_message, table_body)
     end
 
-    example_message |> tuplize(context)
+    example_message |> tuplize(updated_context)
   end
 
   defp transform_node(%AstNode{rule_type: ExamplesTable} = node, context),
@@ -240,6 +252,7 @@ defmodule ExGherkin.AstBuilder do
   defp transform_node(%AstNode{rule_type: Rule} = node, context) do
     header_func = &AstNode.get_single(&1, RuleHeader, %AstNode{rule_type: RuleHeader})
     rule_line_func = &AstNode.get_token(&1, RuleLine)
+    {id, updated_context} = get_id_and_update_context(context)
 
     with {:header?, %AstNode{} = header} <- {:header?, header_func.(node)},
          {:rule_line?, %Token{} = rule_line} <- {:rule_line?, rule_line_func.(header)} do
@@ -249,7 +262,7 @@ defmodule ExGherkin.AstBuilder do
       loc = Token.get_location(rule_line)
 
       %RuleMessage{
-        id: "0",
+        id: id,
         location: loc,
         keyword: rule_line.matched_keyword,
         name: rule_line.matched_text
@@ -261,7 +274,7 @@ defmodule ExGherkin.AstBuilder do
       {:header?, _} -> nil
       {:rule_line?, _} -> nil
     end
-    |> tuplize(context)
+    |> tuplize(updated_context)
   end
 
   defp transform_node(%AstNode{rule_type: GherkinDocument} = n, %ParserContext{} = context) do
@@ -365,7 +378,8 @@ defmodule ExGherkin.AstBuilder do
 
   defp add_background_to(m, nil), do: m
 
-  defp add_scen_def_children_to(%{__struct__: t} = m, scenario_definition_items) when t in [FeatureMessage, RuleMessage] do
+  defp add_scen_def_children_to(%{__struct__: t} = m, scenario_definition_items)
+       when t in [FeatureMessage, RuleMessage] do
     scenario_definition_items
     |> Enum.reduce(m, fn scenario_def, feature_message_acc ->
       child = %FeatureChildMessage{value: {:scenario, scenario_def}}
@@ -385,4 +399,10 @@ defmodule ExGherkin.AstBuilder do
 
   defp match_empty(""), do: true
   defp match_empty(_str), do: false
+
+  defp get_id_and_update_context(context) do
+    {id, updated_generator} = ExGherkin.IdGenerator.get_id(context.ast_builder.id_gen)
+    updated_context = %{context | ast_builder: %{context.ast_builder | id_gen: updated_generator}}
+    {id, updated_context}
+  end
 end

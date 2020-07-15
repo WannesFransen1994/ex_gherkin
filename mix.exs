@@ -22,6 +22,7 @@ defmodule ExGherkin.MixProject do
   defp deps do
     [
       {:jason, "~> 1.2"},
+      {:elixir_uuid, "~> 1.2"},
       {:ex_cucumber_messages,
        git: "https://github.com/WannesFransen1994/ex_cucumber_messages.git", branch: "master"}
       # {:dep_from_hexpm, "~> 0.3.0"},

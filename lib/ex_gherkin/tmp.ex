@@ -47,7 +47,7 @@ defmodule MMwriter do
 
   alias CucumberMessages.Envelope
 
-  def envelope_to_ndjson!(%Envelope{} = message) do
+  def envelope_to_ndjson!(%Envelope{message: %{__struct__: message_type}} = message) do
     # :debugger.start()
     # :int.ni(MMwriter)
     # :int.break(MMwriter, 60)
@@ -56,7 +56,13 @@ defmodule MMwriter do
     # :int.break(MMwriter, 50)
     # :int.break(MMwriter, 46)
 
-    unstruct(message.message, %{})
+    %{"name" => name} = Regex.named_captures(~r/(?<name>[^.]*)$/, Atom.to_string(message_type))
+    {to_be_downcased, camelcased} = name |> Macro.camelize() |> String.split_at(1)
+    new_key = String.downcase(to_be_downcased) <> camelcased
+
+    jsonable = unstruct(message, %{})
+    unclean_jsonable = Map.put_new(jsonable, new_key, jsonable.message)
+    Map.delete(unclean_jsonable, :message)
   end
 end
 
