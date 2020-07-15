@@ -37,7 +37,9 @@ defmodule MMwriter do
     end)
   end
 
-  defp unstruct([], %{}), do: :ignore
+  defp unstruct([], %{}) do
+    :ignore
+  end
 
   defp unstruct(list, acc) when is_list(list) do
     list
@@ -55,13 +57,28 @@ defmodule MMwriter do
         [Map.put(acc, lower_camelcase(new_key), unstruct(value, %{}))]
 
       {new_key, value}, acc when is_list(acc) ->
-        acc ++ [Map.put(%{}, lower_camelcase(new_key), unstruct(value, %{}))]
+        unstructed = unstruct(value, %{})
+
+        case unstructed do
+          :ignore -> acc
+          _ -> acc ++ [Map.put(%{}, lower_camelcase(new_key), unstructed)]
+        end
 
       map, acc when is_map(acc) and acc == %{} ->
-        [unstruct(map, %{})]
+        unstructed = unstruct(map, %{})
+
+        case unstructed do
+          :ignore -> acc
+          _ -> [unstruct(map, %{})]
+        end
 
       map, acc ->
-        acc ++ [unstruct(map, %{})]
+        unstructed = unstruct(map, %{})
+
+        case unstructed do
+          :ignore -> acc
+          _ -> acc ++ [unstruct(map, %{})]
+        end
     end)
   end
 
