@@ -41,7 +41,7 @@ defmodule ExGherkin.AstBuilder do
     %{context | ast_builder: updated_builder}
   end
 
-  def end_rule(%ParserContext{ast_builder: %@me{stack: s}} = context, type) do
+  def end_rule(%ParserContext{ast_builder: %@me{stack: s}} = context, _type) do
     # TODO: We gebruiken type niet? Ik denk dat dat wel moet?
     {%AstNode{} = to_be_transformed, %Stack{} = stack} = Stack.pop(s)
     {transformed_node, transformed_context} = transform_node(to_be_transformed, context)
@@ -148,7 +148,6 @@ defmodule ExGherkin.AstBuilder do
   end
 
   defp transform_node(%AstNode{rule_type: ScenarioDefinition} = node, context) do
-    IO.puts("IN SCENDEF")
     {tags, semi_updated_context} = get_tags(node, context)
     scenario_node = AstNode.get_single(node, Scenario, nil)
     scenario_line = AstNode.get_token(scenario_node, ScenarioLine)
