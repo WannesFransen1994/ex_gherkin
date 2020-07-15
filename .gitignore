@@ -33,5 +33,5 @@ erl_crash.dump
 # Extra for local development
 cp_from_vm.sh
 cp_to_vm.sh
-DIFF_ME
+/diff
 .tool-versions
