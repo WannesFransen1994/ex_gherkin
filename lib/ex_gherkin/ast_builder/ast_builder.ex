@@ -41,7 +41,7 @@ defmodule ExGherkin.AstBuilder do
     %{context | ast_builder: updated_builder}
   end
 
-  def end_rule(%ParserContext{ast_builder: %@me{stack: s}} = context, _type) do
+  def end_rule(%ParserContext{ast_builder: %@me{stack: s}} = context, type) do
     # TODO: We gebruiken type niet? Ik denk dat dat wel moet?
     {%AstNode{} = to_be_transformed, %Stack{} = stack} = Stack.pop(s)
     {transformed_node, transformed_context} = transform_node(to_be_transformed, context)
@@ -127,24 +127,28 @@ defmodule ExGherkin.AstBuilder do
   end
 
   defp transform_node(%AstNode{rule_type: Background} = node, context) do
+    require IEx
     back_ground_line = AstNode.get_token(node, BackgroundLine)
     description = get_description(node)
     steps = get_steps(node)
     loc = Token.get_location(back_ground_line)
     {id, updated_context} = get_id_and_update_context(context)
 
-    %BackgroundMessage{
-      id: id,
-      location: loc,
-      keyword: back_ground_line.matched_keyword,
-      name: back_ground_line.matched_text,
-      steps: steps
-    }
-    |> add_description_to(description)
-    |> tuplize(updated_context)
+    m =
+      %BackgroundMessage{
+        id: id,
+        location: loc,
+        keyword: back_ground_line.matched_keyword,
+        name: back_ground_line.matched_text,
+        steps: steps
+      }
+      |> add_description_to(description)
+
+    tuplize(m, updated_context)
   end
 
   defp transform_node(%AstNode{rule_type: ScenarioDefinition} = node, context) do
+    IO.puts("IN SCENDEF")
     {tags, semi_updated_context} = get_tags(node, context)
     scenario_node = AstNode.get_single(node, Scenario, nil)
     scenario_line = AstNode.get_token(scenario_node, ScenarioLine)
@@ -154,7 +158,7 @@ defmodule ExGherkin.AstBuilder do
     loc = Token.get_location(scenario_line)
     {id, updated_context} = get_id_and_update_context(semi_updated_context)
 
-    %MessageScenario{
+    m = %MessageScenario{
       description: description,
       id: id,
       location: loc,
@@ -164,7 +168,8 @@ defmodule ExGherkin.AstBuilder do
       steps: steps,
       examples: example_list
     }
-    |> tuplize(updated_context)
+
+    tuplize(m, updated_context)
   end
 
   defp transform_node(%AstNode{rule_type: ExamplesDefinition} = node, context) do
@@ -217,7 +222,6 @@ defmodule ExGherkin.AstBuilder do
   end
 
   defp transform_node(%AstNode{rule_type: Feature} = n, context) do
-    require IEx
     header_func = &AstNode.get_single(&1, FeatureHeader, %AstNode{rule_type: FeatureHeader})
     featureline_func = &AstNode.get_token(&1, FeatureLine)
 
