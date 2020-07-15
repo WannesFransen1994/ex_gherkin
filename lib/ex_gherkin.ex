@@ -24,15 +24,18 @@ defmodule ExGherkin do
 
     envelope_w_source
     |> parse_messages(opts)
-
-    # |> print_messages("ndjson")
   end
 
   # def print_messages(envelopes, "protobuf" = format) do
   # end
 
   def print_messages(envelopes, "ndjson" = _format) do
-    Enum.map(envelopes, &MMwriter.envelope_to_ndjson!/1)
+    result =
+      Enum.map(envelopes, &MMwriter.envelope_to_ndjson!/1)
+      |> Enum.map(&Jason.encode!(&1))
+      |> Enum.join("\n")
+
+    result <> "\n"
   end
 
   alias CucumberMessages.{Envelope, Source}
@@ -78,7 +81,6 @@ defmodule ExGherkin do
       %{meta | gherkin_doc: new_gherkin_doc, messages: [%Envelope{message: new_gherkin_doc} | m]}
     else
       {:has_no_ast_opt?, true} ->
-        Logger.warn("no ast opt")
         meta
 
       {:gherkin_doc_present?, true} ->

@@ -3,6 +3,12 @@ defmodule ExGherkinTest do
   doctest ExGherkin
   require Logger
 
+  @moduletag timeout: :infinity
+
+  @files ["testdata", "good", "*.feature"]
+         |> Path.join()
+         |> Path.wildcard()
+
   # test "compare all testdata" do
   #   files =
   #     [File.cwd!(), "testdata", "good", "*.feature"]
@@ -22,40 +28,37 @@ defmodule ExGherkinTest do
   #   end)
   # end
 
-  @file_name "testdata/good/background.feature"
-  @moduletag timeout: :infinity
-
   test "sampletest source correctly structured" do
     opts = ["--no-pickles", "--predictable-ids", "--no-ast"]
 
-    result =
-      ExGherkin.gherkin_from_path(@file_name, opts)
-      |> ExGherkin.print_messages("ndjson")
-      |> Enum.map(&Jason.encode!(&1))
-      |> Enum.join("\n")
+    Enum.each(@files, fn file ->
+      Logger.info("SOURCE:\tTesting the file: #{file}")
 
-    result = result <> "\n"
+      result =
+        ExGherkin.gherkin_from_path(file, opts)
+        |> ExGherkin.print_messages("ndjson")
 
-    decent_result = File.read!(@file_name <> ".source.ndjson")
-    File.write!("diff/DIFF_ME", result)
-    File.write!("diff/DIFF_ME_RESULT", decent_result)
-    assert result == decent_result
+      correct_result = File.read!(file <> ".source.ndjson")
+      File.write!("diff/SOURCE_DIFF_ME", result)
+      File.write!("diff/SOURCE_DIFF_ME_RESULT", correct_result)
+      assert result == correct_result
+    end)
   end
 
   test "sampletest ast correctly structured" do
     opts = ["--no-pickles", "--predictable-ids", "--no-source"]
 
-    result =
-      ExGherkin.gherkin_from_path(@file_name, opts)
-      |> ExGherkin.print_messages("ndjson")
-      |> Enum.map(&Jason.encode!(&1))
-      |> Enum.join("\n")
+    Enum.each(@files, fn file ->
+      Logger.info("AST:\tTesting the file: #{file}")
 
-    result = result <> "\n"
+      result =
+        ExGherkin.gherkin_from_path(file, opts)
+        |> ExGherkin.print_messages("ndjson")
 
-    decent_result = File.read!(@file_name <> ".ast.ndjson")
-    File.write!("diff/AST_DIFF_ME", result)
-    File.write!("diff/AST_DIFF_ME_RESULT", decent_result)
-    assert result == decent_result
+      correct_result = File.read!(file <> ".ast.ndjson")
+      File.write!("diff/AST_DIFF_ME", result)
+      File.write!("diff/AST_DIFF_ME_RESULT", correct_result)
+      assert result == correct_result
+    end)
   end
 end
