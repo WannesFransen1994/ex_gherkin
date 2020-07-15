@@ -28,7 +28,7 @@ defmodule MMwriter do
         Map.put(acc, lower_camelcase(k), unstruct(v, %{}))
 
       {k, data}, acc ->
-        Map.put(acc, lower_camelcase(k), data)
+        Map.put(acc, lower_camelcase(k), unstruct(data, %{}))
     end)
   end
 
@@ -58,6 +58,9 @@ defmodule MMwriter do
         acc ++ [unstruct(map, %{})]
     end)
   end
+
+  defp unstruct({k, v}, acc), do: Map.put(acc, lower_camelcase(k), unstruct(v, %{}))
+  defp unstruct(just_data, _acc), do: just_data
 
   alias CucumberMessages.Envelope
 
