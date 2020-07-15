@@ -22,7 +22,7 @@ defmodule ExGherkinTest do
   #   end)
   # end
 
-  @file_name "testdata/good/minimal.feature"
+  @file_name "testdata/good/minimal-example.feature"
 
   test "sampletest source correctly structured" do
     opts = ["--no-pickles", "--predictable-ids", "--no-ast"]

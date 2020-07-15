@@ -1,12 +1,9 @@
 defmodule ExGherkin.IdGenerator.PredictableGen do
   defstruct count: 0
-
-  # def get_id(%__MODULE__{count: c} = me), do: {c, %{me | count: c + 1}}
 end
 
 defmodule ExGherkin.IdGenerator.UUIDGen do
   defstruct []
-  # def get_id(me), do: {UUID.uuid4(), me}
 end
 
 defprotocol ExGherkin.IdGenerator do
