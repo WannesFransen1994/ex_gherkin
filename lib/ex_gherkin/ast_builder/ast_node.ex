@@ -9,7 +9,7 @@ defmodule ExGherkin.AstNode do
   def add_subitem(%@me{subitems: subitems} = node, ruletype, token_or_node) do
     new_subitems =
       case Map.fetch(subitems, ruletype) do
-        {:ok, list_of_items} -> Map.put(subitems, ruletype, [token_or_node | list_of_items])
+        {:ok, list_of_items} -> Map.put(subitems, ruletype, list_of_items ++ [token_or_node])
         :error -> Map.put_new(subitems, ruletype, [token_or_node])
       end
 

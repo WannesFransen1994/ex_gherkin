@@ -49,7 +49,7 @@ defmodule MMwriter do
         [Map.put(acc, lower_camelcase(new_key), unstruct(value, %{}))]
 
       {new_key, value}, acc when is_list(acc) ->
-       [Map.put(%{}, lower_camelcase(new_key), unstruct(value, %{})) |  acc]
+        acc ++ [Map.put(%{}, lower_camelcase(new_key), unstruct(value, %{}))]
 
       map, acc when is_map(acc) and acc == %{} ->
         [unstruct(map, %{})]
