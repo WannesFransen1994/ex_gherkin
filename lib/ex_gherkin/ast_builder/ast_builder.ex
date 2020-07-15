@@ -191,14 +191,19 @@ defmodule ExGherkin.AstBuilder do
       }
       |> add_description_to(description)
 
-    if rows != nil && !Enum.empty?(rows) do
-      table_header = hd(rows)
-      add_tableheader_to(example_message, table_header)
-      table_body = tl(rows)
-      add_tablebody_to(example_message, table_body)
-    end
+    case rows != nil && !Enum.empty?(rows) do
+      true ->
+        table_header = hd(rows)
+        table_body = tl(rows)
 
-    example_message |> tuplize(updated_context)
+        example_message
+        |> add_tableheader_to(table_header)
+        |> add_tablebody_to(table_body)
+
+      false ->
+        example_message
+    end
+    |> tuplize(updated_context)
   end
 
   defp transform_node(%AstNode{rule_type: ExamplesTable} = node, context),
