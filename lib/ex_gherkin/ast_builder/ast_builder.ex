@@ -127,7 +127,6 @@ defmodule ExGherkin.AstBuilder do
   end
 
   defp transform_node(%AstNode{rule_type: Background} = node, context) do
-    require IEx
     back_ground_line = AstNode.get_token(node, BackgroundLine)
     description = get_description(node)
     steps = get_steps(node)
@@ -212,8 +211,8 @@ defmodule ExGherkin.AstBuilder do
   end
 
   defp transform_node(%AstNode{rule_type: Description} = node, context) do
-    AstNode.get_tokens(node, Other)
-    # |> Enum.reverse()
+    temp = AstNode.get_tokens(node, Other)
+    |> Enum.reverse()
     |> Enum.split_while(fn token ->
       token.matched_text
       |> String.trim()
@@ -221,6 +220,7 @@ defmodule ExGherkin.AstBuilder do
     end)
     |> elem(1)
     |> Enum.map(fn token -> token.matched_text end)
+    |> Enum.reverse()
     |> Enum.join("\n")
     |> tuplize(context)
   end
