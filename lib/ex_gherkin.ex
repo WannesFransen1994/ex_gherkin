@@ -57,7 +57,7 @@ defmodule ExGherkin do
   end
 
   def parse_messages(%Envelope{message: message} = envelope, opts) do
-    meta_info = %{messages: [], gherkin_doc: nil}
+    meta_info = %{messages: [], gherkin_doc: nil, parsable?: true}
 
     meta_info
     |> add_source_envelope(envelope, opts)
@@ -80,7 +80,7 @@ defmodule ExGherkin do
     with {:has_no_ast_opt?, false} <- {:has_no_ast_opt?, ignore?},
          {:gherkin_doc_present?, false} <- {:gherkin_doc_present?, meta.gherkin_doc != nil},
          {:parser_context, %ParserContext{} = pc} <- {:parser_context, Parser.parse(d, opts)},
-         {:parseable?, {:ok, gherkin_doc}} <- {:parseable?, gherkin_doc_from_parsercontext(pc)} do
+         {:parsable?, {:ok, gherkin_doc}} <- {:parsable?, gherkin_doc_from_parsercontext(pc, u)} do
       new_gherkin_doc = %{gherkin_doc | uri: u}
       %{meta | gherkin_doc: new_gherkin_doc, messages: [%Envelope{message: new_gherkin_doc} | m]}
     else
@@ -90,13 +90,29 @@ defmodule ExGherkin do
       {:gherkin_doc_present?, true} ->
         gherkin_doc_envelope = %Envelope{message: meta.gherkin_doc}
         %{meta | messages: [gherkin_doc_envelope | m]}
+
+      {:parsable?, {:error, messages}} ->
+        %{meta | parsable?: false, messages: Enum.reduce(messages, m, &[&1 | &2])}
     end
   end
 
-  defp gherkin_doc_from_parsercontext(%ParserContext{ast_builder: b, errors: []}),
+  defp gherkin_doc_from_parsercontext(%ParserContext{ast_builder: b, errors: []}, _uri),
     do: {:ok, b.gherkin_doc}
 
-  defp add_pickles_envelopes(meta, _smthing, opts) do
+  defp gherkin_doc_from_parsercontext(%ParserContext{ast_builder: b, errors: errors}, uri) do
+    result =
+      Enum.map(errors, fn error ->
+        message = ExGherkin.ParserException.get_message(error)
+        location = ExGherkin.ParserException.get_location(error)
+        source_ref = %CucumberMessages.SourceReference{location: location, uri: uri}
+        to_be_wrapped = %CucumberMessages.ParseError{message: message, source: source_ref}
+        %Envelope{message: to_be_wrapped}
+      end)
+
+    {:error, result}
+  end
+
+  defp add_pickles_envelopes(%{parsable?: true} = meta, _smthing, opts) do
     case "--no-pickles" in opts do
       true ->
         meta
@@ -106,4 +122,6 @@ defmodule ExGherkin do
         IEx.pry()
     end
   end
+
+  defp add_pickles_envelopes(%{parsable?: false} = meta, _smthing, _opts), do: meta
 end

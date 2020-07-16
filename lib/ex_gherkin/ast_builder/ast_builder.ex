@@ -1,5 +1,5 @@
 defmodule ExGherkin.AstBuilder do
-  alias ExGherkin.{ParserContext, AstNode, Token}
+  alias ExGherkin.{ParserContext, AstNode, Token, AstBuilderError, ParserException}
   alias CucumberMessages.GherkinDocument.Comment, as: CommentMessage
   alias CucumberMessages.GherkinDocument.Feature.Tag, as: MessageTag
   alias CucumberMessages.GherkinDocument.Feature.Scenario, as: MessageScenario
@@ -318,15 +318,23 @@ defmodule ExGherkin.AstBuilder do
         {[m | message_acc], semi_updated_context}
       end)
 
-    result = Enum.reverse(reverse_result)
-
-    # TODO: ensure_cell_count
-    {result, updated_context}
+    reverse_result |> Enum.reverse() |> ensure_cell_count(updated_context)
   end
 
-  # defp ensure_cell_count(table_rows) when is_list(table_rows) do
-  #   # TODO: Implement
-  # end
+  # Possible?
+  defp ensure_cell_count([], %ParserContext{} = context), do: {[], context}
+
+  defp ensure_cell_count([first | rest] = rs, %ParserContext{} = context) when is_list(rs) do
+    case Enum.find(rest, &(length(first.cells) != length(&1.cells))) do
+      nil ->
+        {rs, context}
+
+      %TableRowMessage{} = r ->
+        error = %AstBuilderError{location: r.location} |> ParserException.generate_message()
+        updated_context = %{context | errors: context.errors ++ [error]}
+        {rs, updated_context}
+    end
+  end
 
   defp get_cells(%Token{items: items} = token) do
     base_location = %CucumberMessages.Location{} = Token.get_location(token)
