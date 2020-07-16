@@ -80,7 +80,8 @@ defmodule ExGherkin.ParserContext do
     state: 0,
     tokens: [],
     docstring_sep: nil,
-    docstring_indent: nil
+    docstring_indent: nil,
+    forced_eof?: false
   ]
 end
 
@@ -105,15 +106,20 @@ defmodule ExGherkin.Parser do
     |> parse_recursive()
   end
 
-  defp parse_recursive(%ParserContext{reverse_queue: [%Token{matched_type: EOF} | _]} = c) do
+  defp finalize_context(%ParserContext{} = c) do
     ordened_tokens = Enum.reverse(c.reverse_queue)
     %{c | tokens: ordened_tokens, reverse_queue: []} |> AstBuilder.end_rule(GherkinDocument)
   end
 
+  defp parse_recursive(%ParserContext{forced_eof?: true} = c), do: finalize_context(c)
+
+  defp parse_recursive(%ParserContext{reverse_queue: [%Token{matched_type: EOF} | _]} = c),
+    do: finalize_context(c)
+
   defp parse_recursive(%ParserContext{lines: [], reverse_queue: [h | _]} = c) do
-    l = struct!(Line, content: "", index: h.line.index + 1)
-    new_context = %{c | lines: [l]}
-    parse_recursive(new_context)
+    l = struct!(Line, content: "", index: h.line.index)
+    new_context = %{c | lines: [], forced_eof?: true}
+    match_token(l, new_context) |> parse_recursive()
   end
 
   defp parse_recursive(%ParserContext{lines: [current_line | rem_lines]} = context) do
@@ -3866,6 +3872,7 @@ defmodule ExGherkin.Parser do
 
   defp look_helper(_expected, _skip, %{stop?: true} = acc), do: acc
   defp look_helper(_expected, _skip, %{match?: true} = acc), do: acc
+  defp look_helper(_expected, _skip, %{context: %{lines: []}} = acc), do: acc
 
   defp look_helper(expected, skip, %{context: %{lines: [nextl | rem]} = context} = acc) do
     updated_context = %{context | lines: rem}
@@ -3897,8 +3904,8 @@ defmodule ExGherkin.Parser do
 
     error =
       case TokenMatcher.match?(EOF, line, context) do
-        true -> struct!(ExGherkin.UnexpectedTokenError, [type: UnexpectedEOF] ++ general_opts)
-        false -> struct!(ExGherkin.UnexpectedTokenError, [type: UnexpectedToken] ++ general_opts)
+        true -> struct!(ExGherkin.UnexpectedEOFError, general_opts)
+        false -> struct!(ExGherkin.UnexpectedTokenError, general_opts)
       end
 
     new_errors = context.errors ++ [error]

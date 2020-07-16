@@ -21,7 +21,12 @@ defmodule ExGherkin.TokenMatcher do
 
   def match?(EOF, %Line{content: ""}, %PC{lines: []}), do: true
   def match?(EOF, %Line{}, _context), do: false
-  def match?(Empty, %Line{content: c}, _), do: c |> String.trim() |> match_empty()
+
+  def match?(Empty, %Line{content: c}, %PC{forced_eof?: false}),
+    do: c |> String.trim() |> match_empty()
+
+  def match?(Empty, %Line{}, %PC{forced_eof?: true}), do: false
+
   def match?(Comment, %Line{content: c}, _), do: my_starts_with?(c, @constants.comment)
   def match?(TagLine, %Line{content: c}, _), do: my_starts_with?(c, @constants.tag)
   def match?(TableRow, %Line{content: c}, _), do: my_starts_with?(c, @constants.table_cell)
