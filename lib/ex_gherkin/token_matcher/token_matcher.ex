@@ -11,7 +11,7 @@ defmodule ExGherkin.TokenMatcher do
   @language_regex ~r/^\s*#\s*language\s*:\s*(?<lang>[a-zA-Z\-_]+)\s*$/
 
   require IEx
-  alias ExGherkin.{Token, Line}
+  alias ExGherkin.{Token, Line, NoSuchLanguageError}
   alias ExGherkin.ParserContext, as: PC
   alias ExGherkin.Gherkin.Lexicon
 
@@ -175,9 +175,18 @@ defmodule ExGherkin.TokenMatcher do
     # raise "load different lexicon"
     %{"lang" => lang} = Regex.named_captures(@language_regex, c)
     i = String.length(c) - String.length(String.trim_leading(c)) + 1
-    {:ok, new_lexicon} = ExGherkin.Gherkin.Lexicon.load_lang(lang)
     token = struct!(Token, line: l, matched_type: Language, matched_text: lang, indent: i)
-    %{context | language: lang} |> update_lexicon(new_lexicon) |> finalize_parse(token)
+
+    case ExGherkin.Gherkin.Lexicon.load_lang(lang) do
+      {:ok, new_lexicon} ->
+        %{context | language: lang} |> update_lexicon(new_lexicon)
+
+      :error ->
+        language_error = %NoSuchLanguageError{language: lang, location: Token.get_location(token)}
+
+        %{context | errors: [language_error | context.errors]}
+    end
+    |> finalize_parse(token)
   end
 
   def parse(Other = type, %Line{content: c} = l, %PC{docstring_indent: i, docstring_sep: s} = pc) do

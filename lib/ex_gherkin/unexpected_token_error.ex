@@ -22,10 +22,12 @@ defmodule ExGherkin.AstBuilderError do
 end
 
 defmodule ExGherkin.NoSuchLanguageError do
-  defstruct [:message, :location]
+  defstruct [:language, :location]
 
   defimpl ExGherkin.ParserException do
-    def get_message(%{location: l}), do: "(#{l.line}:#{l.column}): no_such_language"
+    def get_message(%{language: lang, location: l}),
+      do: "(#{l.line}:#{l.column}): Language not supported: #{lang}"
+
     def generate_message(%{} = error), do: %{error | message: get_message(error)}
     def get_location(%{location: l}), do: l
   end
