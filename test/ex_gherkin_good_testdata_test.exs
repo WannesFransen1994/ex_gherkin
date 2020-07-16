@@ -1,6 +1,5 @@
-defmodule ExGherkinTest do
+defmodule ExGherkinGoodTestdataTest do
   use ExUnit.Case
-  doctest ExGherkin
   require Logger
 
   @moduletag timeout: :infinity
@@ -9,6 +8,7 @@ defmodule ExGherkinTest do
          |> Path.join()
          |> Path.wildcard()
 
+  @tag :good
   test "TOKENS: compare all testdata" do
     files =
       [File.cwd!(), "testdata", "good", "*.feature"]
@@ -28,6 +28,7 @@ defmodule ExGherkinTest do
     end)
   end
 
+  @tag :good
   test "SOURCE: compare all testdata" do
     opts = ["--no-pickles", "--predictable-ids", "--no-ast"]
 
@@ -45,6 +46,7 @@ defmodule ExGherkinTest do
     end)
   end
 
+  @tag :good
   test "AST: compare all testdata" do
     opts = ["--no-pickles", "--predictable-ids", "--no-source"]
 
