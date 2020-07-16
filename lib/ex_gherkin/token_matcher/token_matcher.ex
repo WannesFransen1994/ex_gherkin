@@ -184,7 +184,7 @@ defmodule ExGherkin.TokenMatcher do
       :error ->
         language_error = %NoSuchLanguageError{language: lang, location: Token.get_location(token)}
 
-        %{context | errors: [language_error | context.errors]}
+        %{context | errors: context.errors ++ [language_error]}
     end
     |> finalize_parse(token)
   end

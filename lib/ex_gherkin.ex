@@ -99,7 +99,7 @@ defmodule ExGherkin do
   defp gherkin_doc_from_parsercontext(%ParserContext{ast_builder: b, errors: []}, _uri),
     do: {:ok, b.gherkin_doc}
 
-  defp gherkin_doc_from_parsercontext(%ParserContext{ast_builder: b, errors: errors}, uri) do
+  defp gherkin_doc_from_parsercontext(%ParserContext{errors: errors}, uri) do
     result =
       Enum.map(errors, fn error ->
         message = ExGherkin.ParserException.get_message(error)

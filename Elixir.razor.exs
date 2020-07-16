@@ -188,7 +188,7 @@ defmodule ExGherkin.@Model.ParserClassName do
       true -> struct!(ExGherkin.UnexpectedTokenError, [type: UnexpectedEOF] ++ general_opts)
       false -> struct!(ExGherkin.UnexpectedTokenError, [type: UnexpectedToken] ++ general_opts)
     end
-    new_errors = [error | context.errors]
+    new_errors = context.errors ++ [error]
     %{context | errors: new_errors}
   end
 end
