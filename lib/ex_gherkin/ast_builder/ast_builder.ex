@@ -211,19 +211,18 @@ defmodule ExGherkin.AstBuilder do
   end
 
   defp transform_node(%AstNode{rule_type: Description} = node, context) do
-    temp =
-      AstNode.get_tokens(node, Other)
-      |> Enum.reverse()
-      |> Enum.split_while(fn token ->
-        token.matched_text
-        |> String.trim()
-        |> match_empty()
-      end)
-      |> elem(1)
-      |> Enum.map(fn token -> token.matched_text end)
-      |> Enum.reverse()
-      |> Enum.join("\n")
-      |> tuplize(context)
+    AstNode.get_tokens(node, Other)
+    |> Enum.reverse()
+    |> Enum.split_while(fn token ->
+      token.matched_text
+      |> String.trim()
+      |> match_empty()
+    end)
+    |> elem(1)
+    |> Enum.map(fn token -> token.matched_text end)
+    |> Enum.reverse()
+    |> Enum.join("\n")
+    |> tuplize(context)
   end
 
   defp transform_node(%AstNode{rule_type: Feature} = n, context) do
@@ -354,17 +353,20 @@ defmodule ExGherkin.AstBuilder do
         {sub_result ++ [token_acc], semi_updated_context}
       end)
 
-    result = Enum.reverse(reversed_result)
+    result = reversed_result |> List.flatten() |> Enum.reverse()
     {result, updated_context}
   end
 
   defp get_tags_from_token(%Token{items: items} = token, context) do
-    Enum.reduce(items, {[], context}, fn tag_item, {tag_acc, context_acc} ->
-      loc = %{Token.get_location(token) | column: tag_item.column}
-      {id, semi_updated_context} = get_id_and_update_context(context_acc)
-      message = %MessageTag{location: loc, name: tag_item.content, id: id}
-      {[message | tag_acc], semi_updated_context}
-    end)
+    {tag_acc, context_acc} =
+      Enum.reduce(items, {[], context}, fn tag_item, {tag_acc, context_acc} ->
+        loc = %{Token.get_location(token) | column: tag_item.column}
+        {id, semi_updated_context} = get_id_and_update_context(context_acc)
+        message = %MessageTag{location: loc, name: tag_item.content, id: id}
+        {[message | tag_acc], semi_updated_context}
+      end)
+
+    {Enum.reverse(tag_acc), context_acc}
   end
 
   defp add_tableheader_to(%ExamplesMessage{} = m, nil), do: m
