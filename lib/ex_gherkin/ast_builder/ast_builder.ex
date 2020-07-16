@@ -1,6 +1,6 @@
 defmodule ExGherkin.AstBuilder do
   alias ExGherkin.{ParserContext, AstNode, Token}
-  alias CucumberMessages.GherkinDocument.Comment
+  alias CucumberMessages.GherkinDocument.Comment, as: CommentMessage
   alias CucumberMessages.GherkinDocument.Feature.Tag, as: MessageTag
   alias CucumberMessages.GherkinDocument.Feature.Scenario, as: MessageScenario
   alias CucumberMessages.GherkinDocument.Feature.Step, as: StepMessage
@@ -57,9 +57,9 @@ defmodule ExGherkin.AstBuilder do
     token = context.current_token
 
     case token.matched_type do
-      Elixir.Comment ->
+      Comment ->
         loc = Token.get_location(token)
-        comment_message = %Comment{location: loc, text: token.line.content}
+        comment_message = %CommentMessage{location: loc, text: token.line.content}
         updated_comments = builder.gherkin_doc.comments ++ [comment_message]
         updated_gherkin_doc = %{builder.gherkin_doc | comments: updated_comments}
         updated_builder = %{builder | gherkin_doc: updated_gherkin_doc}

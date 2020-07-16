@@ -75,7 +75,9 @@ defmodule ExGherkin do
   end
 
   defp add_gherkin_doc_envelope(%{messages: m} = meta, %Source{data: d, uri: u}, opts) do
-    with {:has_no_ast_opt?, false} <- {:has_no_ast_opt?, "--no-ast" in opts},
+    ignore? = "--no-ast" in opts
+
+    with {:has_no_ast_opt?, false} <- {:has_no_ast_opt?, ignore?},
          {:gherkin_doc_present?, false} <- {:gherkin_doc_present?, meta.gherkin_doc != nil},
          {:parser_context, %ParserContext{} = pc} <- {:parser_context, Parser.parse(d, opts)},
          {:parseable?, {:ok, gherkin_doc}} <- {:parseable?, gherkin_doc_from_parsercontext(pc)} do
@@ -91,7 +93,8 @@ defmodule ExGherkin do
     end
   end
 
-  defp gherkin_doc_from_parsercontext(%ParserContext{ast_builder: b}), do: {:ok, b.gherkin_doc}
+  defp gherkin_doc_from_parsercontext(%ParserContext{ast_builder: b, errors: []}),
+    do: {:ok, b.gherkin_doc}
 
   defp add_pickles_envelopes(meta, _smthing, opts) do
     case "--no-pickles" in opts do
