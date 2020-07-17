@@ -8,7 +8,8 @@ defmodule ExGherkin.TokenMatcher.TagLineParser do
     docstring_alt_sep: "```"
   }
 
-  alias ExGherkin.{Line, Token}
+  alias ExGherkin.{Line, Token, InvalidTagError, ParserException}
+  alias CucumberMessages.Location
 
   def parse(TagLine, %Line{content: c} = l, context) do
     raw_tags_line =
@@ -37,9 +38,25 @@ defmodule ExGherkin.TokenMatcher.TagLineParser do
     # TODO: do a filter for invalid tags with spaces
     %{column: new_indent} = unfiltered_tags |> Enum.min_by(& &1.column)
 
+    updated_context = tags_contain_whitespaces?(unfiltered_tags, l, context)
+
     new_token =
       struct!(Token, line: l, indent: new_indent, matched_type: TagLine, items: unfiltered_tags)
 
-    ExGherkin.TokenMatcher.finalize_parse(context, new_token)
+    ExGherkin.TokenMatcher.finalize_parse(updated_context, new_token)
+  end
+
+  defp tags_contain_whitespaces?(tags, line, context) do
+    Enum.reduce(tags, context, fn %{column: col, content: cont}, context_acc ->
+      case cont |> String.trim() |> String.contains?(" ") do
+        true ->
+          location = %Location{line: line.index, column: col}
+          error = %InvalidTagError{location: location} |> ParserException.generate_message()
+          %{context | errors: context.errors ++ [error]}
+
+        false ->
+          context_acc
+      end
+    end)
   end
 end
