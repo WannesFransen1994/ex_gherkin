@@ -106,7 +106,7 @@ defmodule ExGherkin do
         meta
 
       false ->
-        ExGherkin.PickleCompiler.compile(builder)
+        ExGherkin.PickleCompiler.compile(builder, meta.source.uri)
         IEx.pry()
     end
   end

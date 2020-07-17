@@ -52,21 +52,20 @@ defmodule ExGherkinGoodTestdataTest do
     end)
   end
 
-  # @tag :good
-  # @tag :pickles
-  # test "PICKLES: compare all testdata" do
-  #   opts = [:no_ast, :predictable_ids, :no_source]
+  @tag :good
+  @tag :pickles
+  test "PICKLES: compare all testdata" do
+    opts = [:no_ast, :predictable_ids, :no_source]
 
-  #   Enum.each(@files, fn file ->
-  #     Logger.info("AST:\tTesting the file: #{file}")
+    Enum.each(@files, fn path ->
+      correct_output = File.read!(path <> ".pickles.ndjson")
+      result = ExGherkin.parse_path(path, opts)
+      result = correct_output == result
 
-  #     result = ExGherkin.parse_path(file, opts)
-  #     correct_result = File.read!(file <> ".pickles.ndjson")
-  #     # File.write!("diff/PICKLES_DIFF_ME", result)
-  #     # File.write!("diff/PICKLES_DIFF_ME_RESULT", correct_result)
-  #     assert result == correct_result
-  #   end)
-  # end
+      if result == false, do: complain("PICKLES", path)
+      assert result
+    end)
+  end
 
   def complain(type_of_test, path) do
     Logger.warn("#{type_of_test}: File #{path} is not being parsed correctly.")
