@@ -1,49 +1,41 @@
 defmodule ExGherkin do
   require Logger
+  require IEx
 
-  def tokenize(feature_file) do
+  alias CucumberMessages.{Envelope, Source}
+  alias ExGherkin.{Parser, ParserContext, TokenWriter}
+
+  def tokenize(feature_file, opts \\ []) do
     feature_file
-    |> parse()
-    |> ExGherkin.TokenWriter.write_tokens()
+    |> File.read!()
+    |> Parser.parse(opts)
+    |> TokenWriter.write_tokens()
   end
 
-  def parse(feature_file, opts \\ []),
-    do: feature_file |> File.read!() |> ExGherkin.Parser.parse(opts)
+  def parse_paths(paths, opts) when is_list(paths), do: Enum.map(paths, &parse_path(&1, opts))
 
-  def pr(opts \\ ["--no-pickles", "--predictable-ids"]) do
-    Path.join(["testdata", "good", "minimal-example.feature"])
-    |> gherkin_from_path(opts)
-  end
-
-  def gherkin_from_paths(paths, opts) when is_list(paths) do
-    Enum.map(paths, &gherkin_from_path(&1, opts))
-  end
-
-  def gherkin_from_path(path, opts) when is_binary(path) do
+  def parse_path(path, opts) when is_binary(path) do
     {:ok, envelope_w_source} = create_source_envelope(path, opts)
+    format = opts[:format] || :ndjson
 
     envelope_w_source
     |> parse_messages(opts)
+    |> print_messages(format)
   end
 
-  # def print_messages(envelopes, "protobuf" = format) do
-  # end
-
-  def print_messages(envelopes, "ndjson" = _format) do
+  def print_messages(envelopes, :ndjson) do
     result =
       Enum.map(envelopes, &MMwriter.envelope_to_ndjson!/1)
       |> Enum.map(&Jason.encode!(&1))
       |> Enum.join("\n")
 
     result <> "\n"
-    # for testing oneliner (disable above 3 code lines)
-    # recompile; ExGherkin.gherkin_from_path("testdata/good/datatables.feature", ["--no-pickles", "--predictable-ids", "--no-source"]) |> ExGherkin.print_messages("ndjson")
   end
 
-  alias CucumberMessages.{Envelope, Source}
-  alias ExGherkin.{Parser, ParserContext}
+  # def print_messages(envelopes, "protobuf" = format) do
+  # end
 
-  def create_source_envelope(path, _opts) do
+  defp create_source_envelope(path, _opts) do
     case File.read(path) do
       {:ok, binary} ->
         hardcoded_mtype = "text/x.cucumber.gherkin+plain"
@@ -56,50 +48,37 @@ defmodule ExGherkin do
     end
   end
 
-  def parse_messages(%Envelope{message: message} = envelope, opts) do
-    meta_info = %{messages: [], gherkin_doc: nil, parsable?: true}
-
-    meta_info
+  defp parse_messages(%Envelope{message: %Source{} = s} = envelope, opts) do
+    %{messages: [], parsable?: true, source: s, ast_builder: nil}
     |> add_source_envelope(envelope, opts)
-    |> add_gherkin_doc_envelope(message, opts)
+    |> add_gherkin_doc_envelope(opts)
     |> add_pickles_envelopes(nil, opts)
     |> Map.fetch!(:messages)
     |> Enum.reverse()
   end
 
   defp add_source_envelope(%{messages: m} = meta, envelope, opts) when is_list(opts) do
-    case "--no-source" in opts do
+    case :no_source in opts do
       true -> meta
       false -> %{meta | messages: [envelope | m]}
     end
   end
 
-  defp add_gherkin_doc_envelope(%{messages: m} = meta, %Source{data: d, uri: u}, opts) do
-    ignore? = "--no-ast" in opts
-
-    with {:has_no_ast_opt?, false} <- {:has_no_ast_opt?, ignore?},
-         {:gherkin_doc_present?, false} <- {:gherkin_doc_present?, meta.gherkin_doc != nil},
-         {:parser_context, %ParserContext{} = pc} <- {:parser_context, Parser.parse(d, opts)},
-         {:parsable?, {:ok, gherkin_doc}} <- {:parsable?, gherkin_doc_from_parsercontext(pc, u)} do
-      new_gherkin_doc = %{gherkin_doc | uri: u}
-      %{meta | gherkin_doc: new_gherkin_doc, messages: [%Envelope{message: new_gherkin_doc} | m]}
-    else
-      {:has_no_ast_opt?, true} ->
+  defp add_gherkin_doc_envelope(%{source: source} = meta, opts) do
+    case :no_ast in opts and :no_pickles in opts do
+      true ->
         meta
 
-      {:gherkin_doc_present?, true} ->
-        gherkin_doc_envelope = %Envelope{message: meta.gherkin_doc}
-        %{meta | messages: [gherkin_doc_envelope | m]}
-
-      {:parsable?, {:error, messages}} ->
-        %{meta | parsable?: false, messages: Enum.reduce(messages, m, &[&1 | &2])}
+      false ->
+        Parser.parse(source.data, opts)
+        |> get_ast_builder(source.uri)
+        |> update_meta(meta, :ast_builder)
     end
   end
 
-  defp gherkin_doc_from_parsercontext(%ParserContext{ast_builder: b, errors: []}, _uri),
-    do: {:ok, b.gherkin_doc}
+  defp get_ast_builder(%ParserContext{errors: []} = pc, _uri), do: {:ok, pc.ast_builder}
 
-  defp gherkin_doc_from_parsercontext(%ParserContext{errors: errors}, uri) do
+  defp get_ast_builder(%ParserContext{errors: errors}, uri) do
     result =
       Enum.map(errors, fn error ->
         message = ExGherkin.ParserException.get_message(error)
@@ -112,13 +91,22 @@ defmodule ExGherkin do
     {:error, result}
   end
 
-  defp add_pickles_envelopes(%{parsable?: true} = meta, _smthing, opts) do
-    case "--no-pickles" in opts do
+  defp update_meta({:ok, ast_builder}, %{messages: m, source: s} = meta, :ast_builder) do
+    new_ast_builder = %{ast_builder | gherkin_doc: %{ast_builder.gherkin_doc | uri: s.uri}}
+    new_message = %Envelope{message: new_ast_builder.gherkin_doc}
+    %{meta | ast_builder: new_ast_builder, messages: [new_message | m]}
+  end
+
+  defp update_meta({:error, messages}, %{messages: m} = meta, :ast_builder),
+    do: %{meta | parsable?: false, messages: Enum.reduce(messages, m, &[&1 | &2])}
+
+  defp add_pickles_envelopes(%{ast_builder: builder, parsable?: true} = meta, _smthing, opts) do
+    case :no_pickles in opts do
       true ->
         meta
 
       false ->
-        require IEx
+        ExGherkin.PickleCompiler.compile(builder)
         IEx.pry()
     end
   end

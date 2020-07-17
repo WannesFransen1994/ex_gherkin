@@ -9,58 +9,66 @@ defmodule ExGherkinGoodTestdataTest do
          |> Path.wildcard()
 
   @tag :good
+  @tag :tokens
   test "TOKENS: compare all testdata" do
-    files =
-      [File.cwd!(), "testdata", "good", "*.feature"]
-      |> Path.join()
-      |> Path.wildcard()
-
-    Enum.each(files, fn path ->
+    Enum.each(@files, fn path ->
       correct_output = File.read!(path <> ".tokens")
       tokenized_output = ExGherkin.tokenize(path)
       result = correct_output == tokenized_output
 
-      if result == false do
-        Logger.warn("File #{path} is not being parsed correctly.")
-      end
+      if result == false, do: complain("TOKENS", path)
 
       assert result
     end)
   end
 
   @tag :good
+  @tag :source
   test "SOURCE: compare all testdata" do
-    opts = ["--no-pickles", "--predictable-ids", "--no-ast"]
+    opts = [:no_pickles, :predictable_ids, :no_ast]
 
-    Enum.each(@files, fn file ->
-      Logger.info("SOURCE:\tTesting the file: #{file}")
+    Enum.each(@files, fn path ->
+      correct_output = File.read!(path <> ".source.ndjson")
+      result = ExGherkin.parse_path(path, opts)
+      result = correct_output == result
 
-      result =
-        ExGherkin.gherkin_from_path(file, opts)
-        |> ExGherkin.print_messages("ndjson")
-
-      correct_result = File.read!(file <> ".source.ndjson")
-      # File.write!("diff/SOURCE_DIFF_ME", result)
-      # File.write!("diff/SOURCE_DIFF_ME_RESULT", correct_result)
-      assert result == correct_result
+      if result == false, do: complain("SOURCE", path)
+      assert result
     end)
   end
 
   @tag :good
+  @tag :ast
   test "AST: compare all testdata" do
-    opts = ["--no-pickles", "--predictable-ids", "--no-source"]
+    opts = [:no_pickles, :predictable_ids, :no_source]
 
-    Enum.each(@files, fn file ->
-      Logger.info("AST:\tTesting the file: #{file}")
+    Enum.each(@files, fn path ->
+      correct_output = File.read!(path <> ".ast.ndjson")
+      result = ExGherkin.parse_path(path, opts)
+      result = correct_output == result
 
-      result =
-        ExGherkin.gherkin_from_path(file, opts)
-        |> ExGherkin.print_messages("ndjson")
-
-      correct_result = File.read!(file <> ".ast.ndjson")
-      # File.write!("diff/AST_DIFF_ME", result)
-      # File.write!("diff/AST_DIFF_ME_RESULT", correct_result)
-      assert result == correct_result
+      if result == false, do: complain("AST", path)
+      assert result
     end)
+  end
+
+  # @tag :good
+  # @tag :pickles
+  # test "PICKLES: compare all testdata" do
+  #   opts = [:no_ast, :predictable_ids, :no_source]
+
+  #   Enum.each(@files, fn file ->
+  #     Logger.info("AST:\tTesting the file: #{file}")
+
+  #     result = ExGherkin.parse_path(file, opts)
+  #     correct_result = File.read!(file <> ".pickles.ndjson")
+  #     # File.write!("diff/PICKLES_DIFF_ME", result)
+  #     # File.write!("diff/PICKLES_DIFF_ME_RESULT", correct_result)
+  #     assert result == correct_result
+  #   end)
+  # end
+
+  def complain(type_of_test, path) do
+    Logger.warn("#{type_of_test}: File #{path} is not being parsed correctly.")
   end
 end

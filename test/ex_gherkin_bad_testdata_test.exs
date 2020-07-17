@@ -10,19 +10,19 @@ defmodule ExGherkinBadTestdataTest do
 
   @tag :bad
   test "BAD: compare all bad testdata" do
-    opts = ["--no-source", "--no-pickles", "--predictable-ids"]
+    opts = [:no_source, :no_pickles, :predictable_ids]
 
-    Enum.each(@files, fn file ->
-      Logger.info("BAD:\tTesting the file: #{file}")
+    Enum.each(@files, fn path ->
+      correct_output = File.read!(path <> ".errors.ndjson")
+      result = ExGherkin.parse_path(path, opts)
+      result = correct_output == result
 
-      result =
-        ExGherkin.gherkin_from_path(file, opts)
-        |> ExGherkin.print_messages("ndjson")
-
-      correct_result = File.read!(file <> ".errors.ndjson")
-      File.write!("diff/ERR_DIFF_ME", result)
-      File.write!("diff/ERR_DIFF_ME_RESULT", correct_result)
-      assert result == correct_result
+      if result == false, do: complain("ERRORS:", path)
+      assert result
     end)
+  end
+
+  def complain(type_of_test, path) do
+    Logger.warn("#{type_of_test}: File #{path} is not being parsed correctly.")
   end
 end

@@ -27,7 +27,7 @@ defmodule ExGherkin.AstBuilder do
     default_stack = %Stack{} |> Stack.push(root_node)
 
     gen =
-      case "--predictable-ids" in opts do
+      case :predictable_ids in opts do
         true -> %ExGherkin.IdGenerator.PredictableGen{}
         false -> %ExGherkin.IdGenerator.UUIDGen{}
       end
