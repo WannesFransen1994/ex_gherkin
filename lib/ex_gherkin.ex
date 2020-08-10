@@ -29,7 +29,10 @@ defmodule ExGherkin do
       |> Enum.map(&Jason.encode!(&1))
       |> Enum.join("\n")
 
-    result <> "\n"
+    case result do
+      "" -> ""
+      result -> result <> "\n"
+    end
   end
 
   # def print_messages(envelopes, "protobuf" = format) do
@@ -40,7 +43,7 @@ defmodule ExGherkin do
       {:ok, binary} ->
         hardcoded_mtype = "text/x.cucumber.gherkin+plain"
         source_message = %Source{data: binary, uri: path, media_type: hardcoded_mtype}
-        source_envelope = %Envelope{message: source_message}
+        source_envelope = %Envelope{message: {:source, source_message}}
         {:ok, source_envelope}
 
       {:error, message} ->
@@ -48,7 +51,7 @@ defmodule ExGherkin do
     end
   end
 
-  defp parse_messages(%Envelope{message: %Source{} = s} = envelope, opts) do
+  defp parse_messages(%Envelope{message: {:source, %Source{} = s}} = envelope, opts) do
     %{messages: [], parsable?: true, source: s, ast_builder: nil}
     |> add_source_envelope(envelope, opts)
     |> add_gherkin_doc_envelope(opts)
@@ -65,14 +68,25 @@ defmodule ExGherkin do
   end
 
   defp add_gherkin_doc_envelope(%{source: source} = meta, opts) do
-    case :no_ast in opts and :no_pickles in opts do
-      true ->
-        meta
+    parse_and_update_func = fn ->
+      Parser.parse(source.data, opts)
+      |> get_ast_builder(source.uri)
+      |> update_meta(meta, :ast_builder)
+    end
 
-      false ->
-        Parser.parse(source.data, opts)
-        |> get_ast_builder(source.uri)
-        |> update_meta(meta, :ast_builder)
+    no_ast? = :no_ast in opts
+    skip? = no_ast? and :no_pickles in opts
+
+    with {:skip?, false} <- {:skip?, skip?},
+         parsed_meta <- parse_and_update_func.(),
+         {:only_ast, false, _} <- {:only_ast, no_ast?, parsed_meta},
+         %{parsable?: true} <- parsed_meta do
+      new_msg = put_msg_envelope(:gherkin_document, parsed_meta.ast_builder.gherkin_doc)
+      prepend_msg_to_meta(parsed_meta, new_msg)
+    else
+      {:skip?, true} -> meta
+      {:only_ast, true, parsed_meta} -> parsed_meta
+      %{parsable?: false} = p -> p
     end
   end
 
@@ -85,20 +99,23 @@ defmodule ExGherkin do
         location = ExGherkin.ParserException.get_location(error)
         source_ref = %CucumberMessages.SourceReference{location: location, uri: uri}
         to_be_wrapped = %CucumberMessages.ParseError{message: message, source: source_ref}
-        %Envelope{message: to_be_wrapped}
+        put_msg_envelope(:parse_error, to_be_wrapped)
       end)
 
     {:error, result}
   end
 
-  defp update_meta({:ok, ast_builder}, %{messages: m, source: s} = meta, :ast_builder) do
+  defp update_meta({:ok, ast_builder}, %{source: s} = meta, :ast_builder) do
     new_ast_builder = %{ast_builder | gherkin_doc: %{ast_builder.gherkin_doc | uri: s.uri}}
-    new_message = %Envelope{message: new_ast_builder.gherkin_doc}
-    %{meta | ast_builder: new_ast_builder, messages: [new_message | m]}
+    %{meta | ast_builder: new_ast_builder}
   end
 
   defp update_meta({:error, messages}, %{messages: m} = meta, :ast_builder),
     do: %{meta | parsable?: false, messages: Enum.reduce(messages, m, &[&1 | &2])}
+
+  defp put_msg_envelope(type, m), do: %Envelope{message: {type, m}}
+
+  defp prepend_msg_to_meta(%{messages: m} = meta, new), do: %{meta | messages: [new | m]}
 
   defp add_pickles_envelopes(%{ast_builder: builder, parsable?: true} = meta, _smthing, opts) do
     case :no_pickles in opts do
@@ -106,8 +123,11 @@ defmodule ExGherkin do
         meta
 
       false ->
-        ExGherkin.PickleCompiler.compile(builder, meta.source.uri)
-        IEx.pry()
+        messages =
+          ExGherkin.PickleCompiler.compile(builder, meta.source.uri)
+          |> Enum.map(&put_msg_envelope(:pickle, &1))
+
+        %{meta | messages: List.flatten([messages | meta.messages])}
     end
   end
 

@@ -1,6 +1,10 @@
 defmodule MMwriter do
   require IEx
 
+  defp unstruct(%CucumberMessages.Location{column: 0} = map, acc) do
+    map |> Map.from_struct() |> Map.delete(:column) |> unstruct(acc)
+  end
+
   defp unstruct(%{__struct__: _} = map, acc) when is_map(map) do
     map |> Map.from_struct() |> unstruct(acc)
   end
@@ -44,9 +48,21 @@ defmodule MMwriter do
   defp unstruct(list, acc) when is_list(list) do
     list
     |> Enum.map(fn
-      %CucumberMessages.GherkinDocument.Feature.FeatureChild{} = el -> el.value
-      # %CucumberMessages.GherkinDocument.Feature.Step{argument: {k,v}} = el -> el |> Map.put(k, v) |> Map.delete(:argument)
-      other_el -> other_el
+      %CucumberMessages.GherkinDocument.Feature.FeatureChild{} = el ->
+        el.value
+
+      %CucumberMessages.Pickle.PickleStep{
+        argument: %CucumberMessages.PickleStepArgument.PickleTable{}
+      } = el ->
+        Map.put(el, :argument, %{dataTable: el.argument}) |> Map.delete(:__struct__)
+
+      %CucumberMessages.Pickle.PickleStep{
+        argument: %CucumberMessages.PickleStepArgument.PickleDocString{}
+      } = el ->
+        Map.put(el, :argument, %{docString: el.argument}) |> Map.delete(:__struct__)
+
+      other_el ->
+        other_el
     end)
     |> Enum.reduce(acc, fn
       {_new_key, nil}, acc ->
@@ -89,12 +105,10 @@ defmodule MMwriter do
 
   alias(CucumberMessages.Envelope)
 
-  def envelope_to_ndjson!(%Envelope{message: %{__struct__: message_type}} = message) do
-    %{"name" => name} = Regex.named_captures(~r/(?<name>[^.]*)$/, Atom.to_string(message_type))
+  def envelope_to_ndjson!(%Envelope{} = message) do
+    message |> Protox.Encode.encode!()
 
-    jsonable = unstruct(message, %{})
-    unclean_jsonable = Map.put_new(jsonable, lower_camelcase(name), jsonable["message"])
-    Map.delete(unclean_jsonable, "message")
+    unstruct(message, %{})
   end
 
   defp lower_camelcase(atom) when is_atom(atom), do: atom |> Atom.to_string() |> lower_camelcase()

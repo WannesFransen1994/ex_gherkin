@@ -16,6 +16,6 @@ defmodule ExGherkin.UnexpectedEOFError do
       do:
         struct!(ExGherkin.Token, line: me.line)
         |> ExGherkin.Token.get_location()
-        |> Map.put(:column, nil)
+        |> Map.put(:column, 0)
   end
 end

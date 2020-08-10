@@ -4,7 +4,8 @@ defmodule ExGherkinGoodTestdataTest do
 
   @moduletag timeout: :infinity
 
-  @files ["testdata", "good", "*.feature"]
+  # @files ["testdata", "good", "*.feature"]
+  @files ["testdata", "good", "background.feature"]
          |> Path.join()
          |> Path.wildcard()
 
