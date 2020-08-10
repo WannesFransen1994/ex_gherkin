@@ -15,8 +15,6 @@ defmodule ExGherkinBadTestdataTest do
     Enum.each(@files, fn path ->
       correct_output = File.read!(path <> ".errors.ndjson")
       result = ExGherkin.parse_path(path, opts)
-      File.write!("diff/PI_DIFF_ME.json", result)
-      File.write!("diff/PI_DIFF_ME_RESULT.json", correct_output)
       result = correct_output == result
 
       if result == false, do: complain("ERRORS:", path)
