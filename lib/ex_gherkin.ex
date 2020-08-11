@@ -25,7 +25,7 @@ defmodule ExGherkin do
 
   def print_messages(envelopes, :ndjson) do
     result =
-      Enum.map(envelopes, &MMwriter.envelope_to_ndjson!/1)
+      Enum.map(envelopes, &ExCucumberMessages.Writer.envelope_to_ndjson!/1)
       |> Enum.map(&Jason.encode!(&1))
       |> Enum.join("\n")
 

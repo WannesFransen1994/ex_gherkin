@@ -1,6 +1,6 @@
 %{
   "elixir_uuid": {:hex, :elixir_uuid, "1.2.1", "dce506597acb7e6b0daeaff52ff6a9043f5919a4c3315abb4143f0b00378c097", [:mix], [], "hexpm", "f7eba2ea6c3555cea09706492716b0d87397b88946e6380898c2889d68585752"},
-  "ex_cucumber_messages": {:git, "https://github.com/WannesFransen1994/ex_cucumber_messages.git", "fcd459bb4ac2dcb74f9d7c56392b03a39c33d1ff", [branch: "master"]},
+  "ex_cucumber_messages": {:git, "https://github.com/WannesFransen1994/ex_cucumber_messages.git", "29842fcc28fe095bc830dacc0a747b4ae01f80be", [branch: "master"]},
   "jason": {:hex, :jason, "1.2.1", "12b22825e22f468c02eb3e4b9985f3d0cb8dc40b9bd704730efa11abd2708c44", [:mix], [{:decimal, "~> 1.0", [hex: :decimal, repo: "hexpm", optional: true]}], "hexpm", "b659b8571deedf60f79c5a608e15414085fa141344e2716fbd6988a084b5f993"},
   "protox": {:hex, :protox, "0.25.0", "33ae92ae6ff7a27248f99223fdf5367bf7e6a701ec194a57347b636665a80efc", [:mix], [], "hexpm", "92db1da2801e3b5f7bccf1591d05be00a13bef4768c64de51d26a00d98537fd2"},
 }
