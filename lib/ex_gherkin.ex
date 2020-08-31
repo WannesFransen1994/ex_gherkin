@@ -5,10 +5,10 @@ defmodule ExGherkin do
   alias CucumberMessages.{Envelope, Source}
   alias ExGherkin.{Parser, ParserContext, TokenWriter}
 
-  def tokenize(feature_file, opts \\ []) do
+  def tokenize(feature_file) do
     feature_file
     |> File.read!()
-    |> Parser.parse(opts)
+    |> Parser.parse([])
     |> TokenWriter.write_tokens()
   end
 
@@ -16,11 +16,9 @@ defmodule ExGherkin do
 
   def parse_path(path, opts) when is_binary(path) do
     {:ok, envelope_w_source} = create_source_envelope(path, opts)
-    format = opts[:format] || :ndjson
 
     envelope_w_source
     |> parse_messages(opts)
-    |> print_messages(format)
   end
 
   def print_messages(envelopes, :ndjson) do
