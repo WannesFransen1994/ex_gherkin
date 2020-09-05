@@ -3,24 +3,19 @@ defmodule ExGherkin do
   alias ExGherkin.{Parser, ParserContext, TokenWriter}
 
   @moduledoc """
-  Documentation for `ExCucumberMessages`.
-  """
+  `ExGherkin` allows you to parse Gherkin files to pickles (or tokens). These pickles can be used in a cucumber implementation.
 
-  @doc """
-  Convert a list of envelopes to the passed format. At the moment only ndjson is supported until there is binary test data.
+  The ExCucumberMessages library is used in almost every step of building the pickles and envelopes.
 
-  Because the underlying Protox library doesn't support JSON conversion, we had to write a manual implementation. ndjson formatting is, at the moment, only supported for the `ex_gherkin` library. Other messages will not properly be formatted according to protobuf protocols.
-
-  ## Examples
-
-      iex> ExCucumberMessages.convert_envelopes_to(envelopes, :ndjson)
-      TODO: write decent documentation
-
+  Testdata is used from the Cucumber repository.
   """
 
   ###################
   # API             #
   ###################
+  @doc """
+  Tokenizes a feature file. Normally you should not need this.
+  """
   def tokenize(feature_file) do
     feature_file
     |> File.read!()
@@ -28,7 +23,32 @@ defmodule ExGherkin do
     |> TokenWriter.write_tokens()
   end
 
+  @doc """
+  Returns a list of envelopes. See `parse_path/2` for more information.
+  """
   def parse_paths(paths, opts) when is_list(paths), do: Enum.map(paths, &parse_path(&1, opts))
+
+  @doc """
+  Parse a single feature file and return a list of envelopes. You can provide the following opts in a list:
+
+  * :no_source
+  * :no_ast
+  * :no_pickles
+
+
+  ## Examples
+
+      iex> ExGherkin.parse_path("testdata/good/background.feature", [:no_ast, :no_pickles])
+      [
+        %CucumberMessages.Envelope{
+          __uf__: [],
+          message: {:source,
+            %CucumberMessages.Source{
+              # ...
+          }}
+        }
+      ]
+  """
 
   def parse_path(path, opts) when is_binary(path) do
     {:ok, envelope_w_source} = create_source_envelope(path, opts)
@@ -37,6 +57,19 @@ defmodule ExGherkin do
     |> parse_messages(opts)
   end
 
+  @doc """
+  Rely on ExCucumberMessages printer to print the envelopes to the specified format. Currently only `:ndjson` is supported.
+
+  It is likely that Elixir projects won't directly use this as they can use the unformatted protobuf message version in Cucumber as well.
+
+  ## Examples
+
+      iex> ExGherkin.parse_path("testdata/good/background.feature", []) |> ExGherkin.print_messages(:ndjson) |> IO.puts
+      {"source":{"data": .......... }}
+      {"gherkinDocument":{"feature": ........... }}
+      {"pickle":{ .......... }}
+      {"pickle":{ .......... }}
+  """
   defdelegate print_messages(envelopes, type), to: ExCucumberMessages, as: :convert_envelopes_to
 
   ####################
