@@ -1,4 +1,5 @@
 defmodule ExGherkin.AstBuilderError do
+  @moduledoc false
   defstruct [:message, :location]
 
   defimpl ExGherkin.ParserException do

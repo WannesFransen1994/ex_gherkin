@@ -1,4 +1,5 @@
 defmodule ExGherkin.Token do
+  @moduledoc false
   @me __MODULE__
   alias CucumberMessages.Location
 

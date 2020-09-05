@@ -1,4 +1,5 @@
 defmodule ExGherkin.PickleCompiler do
+  @moduledoc false
   defstruct id_gen: nil, pickles: [], language: nil, uri: nil
 
   alias CucumberMessages.GherkinDocument.Feature, as: FeatureMessage
@@ -21,7 +22,6 @@ defmodule ExGherkin.PickleCompiler do
   alias CucumberMessages.GherkinDocument.Feature.Step.DataTable, as: DataTableMessage
 
   @me __MODULE__
-  require IEx
 
   def compile(%ExGherkin.AstBuilder{gherkin_doc: gherkin_doc, id_gen: id_generator}, uri) do
     me = %@me{id_gen: id_generator, uri: uri}
@@ -114,8 +114,6 @@ defmodule ExGherkin.PickleCompiler do
 
   defp scenario_outline_create_pickles(m, example, s, f_or_bg?, table_header) do
     Enum.reduce(example.table_body, m, fn value_row, m_acc ->
-      # value_cells = value_row.cells
-
       {steps, updated_acc} =
         case s.steps do
           [] -> {[], m_acc.compiler_acc}
@@ -139,7 +137,6 @@ defmodule ExGherkin.PickleCompiler do
         id: id,
         uri: m_acc.compiler_acc.uri,
         name: interpolate(s.name, table_header.cells, value_row.cells),
-        # name: s.name,
         language: m_acc.compiler_acc.language,
         steps: updated_steps,
         tags: pickle_tags,
@@ -168,7 +165,6 @@ defmodule ExGherkin.PickleCompiler do
 
   defp pickle_step(%StepMessage{} = m, %@me{} = acc), do: pickle_step_creator(m, [], nil, acc)
 
-  # values row = TableRowMessage
   defp pickle_step_creator(%StepMessage{} = m, variable_cells, values_row, %@me{} = acc) do
     value_cells =
       case values_row do

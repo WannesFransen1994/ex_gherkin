@@ -21,12 +21,8 @@ defmodule ExGherkin.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:jason, "~> 1.2"},
       {:elixir_uuid, "~> 1.2"},
-      {:ex_cucumber_messages,
-       git: "https://github.com/WannesFransen1994/ex_cucumber_messages.git", branch: "master"}
-      # {:dep_from_hexpm, "~> 0.3.0"},
-      # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
+      {:ex_cucumber_messages, "~> 0.1.0"}
     ]
   end
 end

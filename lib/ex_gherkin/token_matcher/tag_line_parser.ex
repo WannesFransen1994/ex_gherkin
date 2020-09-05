@@ -1,4 +1,5 @@
 defmodule ExGherkin.TokenMatcher.TagLineParser do
+  @moduledoc false
   @constants %{
     tag: "@",
     comment: "#",
@@ -35,7 +36,6 @@ defmodule ExGherkin.TokenMatcher.TagLineParser do
 
     unfiltered_tags = Enum.sort_by(unfiltered_tags, & &1.column)
 
-    # TODO: do a filter for invalid tags with spaces
     %{column: new_indent} = unfiltered_tags |> Enum.min_by(& &1.column)
 
     updated_context = tags_contain_whitespaces?(unfiltered_tags, l, context)

@@ -1,12 +1,15 @@
 defmodule ExGherkin.IdGenerator.PredictableGen do
+  @moduledoc false
   defstruct count: 0
 end
 
 defmodule ExGherkin.IdGenerator.UUIDGen do
+  @moduledoc false
   defstruct []
 end
 
 defprotocol ExGherkin.IdGenerator do
+  @moduledoc false
   def get_id(possible_state)
 end
 

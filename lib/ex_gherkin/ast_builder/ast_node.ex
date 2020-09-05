@@ -1,11 +1,10 @@
 defmodule ExGherkin.AstNode do
+  @moduledoc false
   @me __MODULE__
   defstruct rule_type: nil, subitems: %{}
-  require IEx
 
   alias ExGherkin.{AstNode, RuleTypes}
 
-  # Uhm apparently in gherkindocbuilder
   def add_subitem(%@me{subitems: subitems} = node, ruletype, token_or_node) do
     new_subitems =
       case Map.fetch(subitems, ruletype) do

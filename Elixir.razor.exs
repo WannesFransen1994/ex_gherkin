@@ -36,6 +36,7 @@
 {<text>match_@(tokenType)(context, token)</text>}
 
 defmodule ExGherkin.TokenTypes do
+  @moduledoc false
   @@token_types [
     None,
     @foreach(var rule in Model.RuleSet.TokenRules){
@@ -46,6 +47,7 @@ defmodule ExGherkin.TokenTypes do
 end
 
 defmodule ExGherkin.RuleTypes do
+  @moduledoc false
   @@rule_types [
     None,
     @foreach(var rule in Model.RuleSet.Where(r => !r.TempRule)){
@@ -80,6 +82,7 @@ defmodule ExGherkin.ParserContext do
 end
 
 defmodule ExGherkin.@Model.ParserClassName do
+  @moduledoc false
   alias ExGherkin.{ParserContext, TokenMatcher, Token, Line, AstBuilder}
 
   def parse(text, opts) when is_binary(text), do: text |> String.split(~r/\R/) |> parse(opts)

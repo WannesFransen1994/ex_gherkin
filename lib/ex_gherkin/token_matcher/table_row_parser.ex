@@ -1,4 +1,5 @@
 defmodule ExGherkin.TokenMatcher.TableRowParser do
+  @moduledoc false
   alias ExGherkin.{Line, Token}
 
   def parse(TableRow, %Line{content: line_content} = l, context) do

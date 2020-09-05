@@ -1,4 +1,5 @@
 defmodule ExGherkin.UnexpectedTokenError do
+  @moduledoc false
   defstruct [:line, :expected_tokens, :comment]
 
   defimpl ExGherkin.ParserException do

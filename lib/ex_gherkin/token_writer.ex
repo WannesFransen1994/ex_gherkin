@@ -1,10 +1,9 @@
 defmodule ExGherkin.TokenWriter do
+  @moduledoc false
   alias ExGherkin.{ParserContext, Token}
 
-  def write_tokens(%ParserContext{tokens: t} = _context) do
+  def write_tokens(%ParserContext{tokens: t}) do
     Enum.map(t, &write_token/1) |> Enum.join("\n")
-    # Logger.debug("\n" <> textified)
-    # context
   end
 
   defp write_token(%Token{matched_type: EOF}), do: "EOF\n"

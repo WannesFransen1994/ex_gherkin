@@ -1,4 +1,5 @@
 defmodule ExGherkin.NoSuchLanguageError do
+  @moduledoc false
   defstruct [:language, :location]
 
   defimpl ExGherkin.ParserException do

@@ -1,4 +1,5 @@
 defmodule ExGherkin.InvalidTagError do
+  @moduledoc false
   defstruct [:message, :location]
 
   defimpl ExGherkin.ParserException do

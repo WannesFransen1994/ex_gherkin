@@ -1,10 +1,26 @@
 defmodule ExGherkin do
-  require Logger
-  require IEx
-
   alias CucumberMessages.{Envelope, Source}
   alias ExGherkin.{Parser, ParserContext, TokenWriter}
 
+  @moduledoc """
+  Documentation for `ExCucumberMessages`.
+  """
+
+  @doc """
+  Convert a list of envelopes to the passed format. At the moment only ndjson is supported until there is binary test data.
+
+  Because the underlying Protox library doesn't support JSON conversion, we had to write a manual implementation. ndjson formatting is, at the moment, only supported for the `ex_gherkin` library. Other messages will not properly be formatted according to protobuf protocols.
+
+  ## Examples
+
+      iex> ExCucumberMessages.convert_envelopes_to(envelopes, :ndjson)
+      TODO: write decent documentation
+
+  """
+
+  ###################
+  # API             #
+  ###################
   def tokenize(feature_file) do
     feature_file
     |> File.read!()
@@ -21,20 +37,11 @@ defmodule ExGherkin do
     |> parse_messages(opts)
   end
 
-  def print_messages(envelopes, :ndjson) do
-    result =
-      Enum.map(envelopes, &ExCucumberMessages.Writer.envelope_to_ndjson!/1)
-      |> Enum.map(&Jason.encode!(&1))
-      |> Enum.join("\n")
+  defdelegate print_messages(envelopes, type), to: ExCucumberMessages, as: :convert_envelopes_to
 
-    case result do
-      "" -> ""
-      result -> result <> "\n"
-    end
-  end
-
-  # def print_messages(envelopes, "protobuf" = format) do
-  # end
+  ####################
+  # HELPER FUNCTIONS #
+  ####################
 
   defp create_source_envelope(path, _opts) do
     case File.read(path) do
@@ -53,7 +60,7 @@ defmodule ExGherkin do
     %{messages: [], parsable?: true, source: s, ast_builder: nil}
     |> add_source_envelope(envelope, opts)
     |> add_gherkin_doc_envelope(opts)
-    |> add_pickles_envelopes(nil, opts)
+    |> add_pickles_envelopes(opts)
     |> Map.fetch!(:messages)
     |> Enum.reverse()
   end
@@ -115,7 +122,7 @@ defmodule ExGherkin do
 
   defp prepend_msg_to_meta(%{messages: m} = meta, new), do: %{meta | messages: [new | m]}
 
-  defp add_pickles_envelopes(%{ast_builder: builder, parsable?: true} = meta, _smthing, opts) do
+  defp add_pickles_envelopes(%{ast_builder: builder, parsable?: true} = meta, opts) do
     case :no_pickles in opts do
       true ->
         meta
@@ -129,5 +136,5 @@ defmodule ExGherkin do
     end
   end
 
-  defp add_pickles_envelopes(%{parsable?: false} = meta, _smthing, _opts), do: meta
+  defp add_pickles_envelopes(%{parsable?: false} = meta, _opts), do: meta
 end

@@ -1,4 +1,5 @@
 defmodule ExGherkin.TokenMatcher do
+  @moduledoc false
   @constants %{
     tag: "@",
     comment: "#",
@@ -177,7 +178,6 @@ defmodule ExGherkin.TokenMatcher do
   end
 
   def parse(Language, %Line{content: c} = l, context) do
-    # raise "load different lexicon"
     %{"lang" => lang} = Regex.named_captures(@language_regex, c)
     i = String.length(c) - String.length(String.trim_leading(c)) + 1
     token = struct!(Token, line: l, matched_type: Language, matched_text: lang, indent: i)

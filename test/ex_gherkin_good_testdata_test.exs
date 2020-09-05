@@ -30,7 +30,7 @@ defmodule ExGherkinGoodTestdataTest do
 
     Enum.each(@files, fn path ->
       correct_output = File.read!(path <> ".source.ndjson")
-      result = ExGherkin.parse_path(path, opts)
+      result = ExGherkin.parse_path(path, opts) |> ExGherkin.print_messages(:ndjson)
       result = correct_output == result
 
       if result == false, do: complain("SOURCE", path)
@@ -45,7 +45,7 @@ defmodule ExGherkinGoodTestdataTest do
 
     Enum.each(@files, fn path ->
       correct_output = File.read!(path <> ".ast.ndjson")
-      result = ExGherkin.parse_path(path, opts)
+      result = ExGherkin.parse_path(path, opts) |> ExGherkin.print_messages(:ndjson)
       result = correct_output == result
 
       if result == false, do: complain("AST", path)
@@ -60,7 +60,7 @@ defmodule ExGherkinGoodTestdataTest do
 
     Enum.each(@files, fn path ->
       correct_output = File.read!(path <> ".pickles.ndjson")
-      result = ExGherkin.parse_path(path, opts)
+      result = ExGherkin.parse_path(path, opts) |> ExGherkin.print_messages(:ndjson)
       result = correct_output == result
 
       if result == false, do: complain("PICKLES", path)

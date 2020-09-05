@@ -1,4 +1,5 @@
 defmodule Stack do
+  @moduledoc false
   defstruct list: []
 
   def new, do: %Stack{}
