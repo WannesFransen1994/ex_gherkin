@@ -1,7 +1,6 @@
 defmodule ExGherkin.Gherkin.Lexicon do
   @moduledoc false
-  @default_lexicon_path [File.cwd!(), :code.priv_dir(:ex_gherkin), "gherkin_languages.json"]
-                        |> Path.join()
+  @default_lexicon_path [:code.priv_dir(:ex_gherkin), "gherkin_languages.json"] |> Path.join()
   @feature_keywords ["feature"]
   # @scen_keywords ["scenario"]
   # @scen_outline_keywords ["scenarioOutline"]
