@@ -1,7 +1,7 @@
 defmodule ExGherkin.MixProject do
   use Mix.Project
 
-  @vsn "0.2.1"
+  @vsn "0.2.2"
   @github "https://github.com/WannesFransen1994/ex_gherkin"
   @name "ExGherkin"
 
